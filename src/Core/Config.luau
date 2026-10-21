@@ -1,4 +1,8 @@
+-- [[ config ]]
+
+-- Configuration
 return function()
+
 	return {
 		Name = "Chorus - MM2 | Delta",
 		ConfigFolder = "ChorusMM2Delta",
