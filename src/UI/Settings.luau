@@ -1,9 +1,11 @@
 -- [[ settings ]]
 
 return function(API)
-	local Runtime = API.Runtime; local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window
-	local UI = WindowContext.UI; local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Farm = API.Features.AutoFarm
-	local ESP = API.Features.ESP; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling
+	local Runtime = API.Runtime; local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local ESPOptionsModal = API:Require("src/UI/ESPOptionsModal")
+	local WindowContext = API.UI.Window; local UI = WindowContext.UI; local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib
+	local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling
+	local openESPOptions
+	local updateESPSelectionText
 
 	-- ControlGroups
 	local Settings = {}
@@ -56,6 +58,18 @@ return function(API)
 				},
 			},
 			{
+				Key = "ESPOptionsButton",
+				Flag = "ESPOptionsButton",
+				ParentFlag = "ESPEnabled",
+				Type = "Button",
+				Config = {
+					Name = "Selecionar opções do ESP",
+					Callback = function()
+						if openESPOptions then openESPOptions() end
+					end,
+				},
+			},
+			{
 				Key = "ESPShowName",
 				Flag = "ESPShowName",
 				ParentFlag = "ESPEnabled",
@@ -64,14 +78,11 @@ return function(API)
 					Name = "Nome sobre jogadores",
 					Default = true,
 					Save = true,
-					Callback = function(value) ESP.ShowName = value == true end,
+					Callback = function(value)
+						ESP.ShowName = value == true
+						if updateESPSelectionText then updateESPSelectionText() end
+					end,
 				},
-			},
-			{
-				Key = "ESPFilterNote",
-				ParentFlag = "ESPEnabled",
-				Type = "Label",
-				Text = "Exibir — todos ativos por padrão",
 			},
 		},
 		Player = {
@@ -127,7 +138,10 @@ return function(API)
 				Default = true,
 				Color = ESP.Colors[currentOption.Filter],
 				Save = true,
-				Callback = function(value) ESP.Filters[currentOption.Filter] = value == true end,
+				Callback = function(value)
+					ESP.Filters[currentOption.Filter] = value == true
+					if updateESPSelectionText then updateESPSelectionText() end
+				end,
 			},
 
 		})
@@ -140,6 +154,27 @@ return function(API)
 			local registry = ControlRegistry.new(Tabs[tabName], function() return UI:GetItemContainer(tabName) end)
 			registry:Build(ControlGroups[tabName]); registries[tabName] = registry
 		end
+		local visualRegistry = registries.Visuals; local selectionFlags = { "ESPShowName", "ESPMurderer", "ESPSheriff", "ESPInnocent", "ESPCandyCoin", "ESPGun" }; local optionRoots = {}
+		for _, flag in ipairs(selectionFlags) do
+			local node = visualRegistry.ByFlag[flag]
+			if not node then error("O seletor do ESP não encontrou o controle " .. flag .. ".", 2) end
+			table.insert(optionRoots, node.LayoutRoot)
+		end
+		local selector = Util.InitializeComponent(
+			"criar o seletor múltiplo do ESP",
+			function() return ESPOptionsModal.new(UI, optionRoots) end
+		)
+		openESPOptions = function() selector:Open() end
+		local selectorButton = visualRegistry.ByFlag.ESPOptionsButton.Control
+		updateESPSelectionText = function()
+			local selected = ESP.ShowName and 1 or 0
+			for _, option in ipairs(ESPOptions) do
+				if ESP.Filters[option.Filter] then selected += 1 end
+			end
+			selectorButton:Set(string.format("Selecionar opções do ESP (%d/%d)", selected, #selectionFlags))
+		end
+		updateESPSelectionText()
+		API.UI.ESPOptionsModal = selector
 		API.UI.Registries = registries
 		Util.InitializeComponent("inicializar a Orion", function() return OrionLib:Init() end)
 		UI:SetOpen(true); return registries
