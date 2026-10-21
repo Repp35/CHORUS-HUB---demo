@@ -1,5 +1,22 @@
 -- [[ loader ]]
 
+-- ExecutorIdentity
+local function queryExecutorName(detector)
+	if type(detector) ~= "function" then return nil end
+	local ok, name = pcall(detector)
+	if not ok then return nil end
+	if type(name) == "table" then name = name.Name or name.name or name[1] end
+	if type(name) ~= "string" then return nil end
+	name = name:match("^%s*(.-)%s*$"); local normalizedName = string.lower(name)
+	if name == "" or normalizedName == "unknown" or normalizedName == "roblox" or normalizedName == "studio" then return nil end
+	return name
+end
+local ExecutorName = queryExecutorName(identifyexecutor) or queryExecutorName(getexecutorname)
+if not ExecutorName or type(loadstring) ~= "function" then return end
+local httpGetOk, httpGet = pcall(function() return game.HttpGet end)
+if not httpGetOk or type(httpGet) ~= "function" then return end
+print("[Chorus Loader] Executor: " .. ExecutorName)
+
 -- Constants
 local MM2_GAME_ID = 66654135
 local REPOSITORY = "Repp35/CHORUS-HUB---demo"
@@ -60,6 +77,7 @@ local API = {
 	Repository = REPOSITORY,
 	Branch = BRANCH,
 	Commit = commitOrError,
+	ExecutorName = ExecutorName,
 	SharedEnvironment = SharedEnvironment,
 	Cache = {},
 	Loading = {},
