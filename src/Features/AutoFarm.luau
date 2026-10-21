@@ -15,6 +15,8 @@ return function(API)
 		ProximityConnection = nil,
 		LastProximitySweepAt = 0,
 		BagFull = false,
+		BagResetTriggered = false,
+		BagResetThread = nil,
 		MaintenanceConnection = nil,
 		NoclipLease = false,
 		FarmingCharacter = nil,
@@ -36,6 +38,48 @@ return function(API)
 		local now = os.clock()
 		if now - self.LastErrorAt < 5 then return end
 		self.LastErrorAt = now; warn("[Chorus MM2] Auto Farm recuperando após erro em " .. context .. ": " .. tostring(errorMessage))
+	end
+	function Farm:ResetCharacterForFullBag()
+		if not self.Enabled or not self.BagFull or self.BagResetTriggered or Runtime.ShuttingDown then return false end
+		local inMatch, character, humanoid = MatchService:GetContext()
+		if not inMatch or not character or not humanoid then return false end
+		self.BagResetTriggered = true; self:StopFarming()
+		local thread
+		thread = task.spawn(function()
+			task.wait(0.5)
+			local canReset = self.Enabled
+				and self.BagFull
+				and not Runtime.ShuttingDown
+				and Player.Character == character
+				and humanoid.Parent ~= nil
+				and humanoid.Health > 0
+				and Player:GetAttribute("Alive") == true
+			if canReset then
+				local resetOk, resetError = pcall(function() humanoid.Health = 0 end)
+				if not resetOk then
+					self.BagResetTriggered = false
+					self:ReportError("reset da bolsa cheia", resetError)
+				end
+			else
+				self.BagResetTriggered = false
+			end
+			if self.BagResetThread == thread then self.BagResetThread = nil end
+		end)
+		self.BagResetThread = thread
+		return true
+	end
+	function Farm:CancelBagReset()
+		local thread = self.BagResetThread
+		self.BagResetThread = nil
+		if thread then
+			pcall(task.cancel, thread)
+			self.BagResetTriggered = false
+		end
+	end
+	function Farm:ResetBagState()
+		self:CancelBagReset()
+		self.BagFull = false
+		self.BagResetTriggered = false
 	end
 
 	-- Noclip
@@ -237,11 +281,12 @@ return function(API)
 			self:StopFarming(); self:StopProximityCollection()
 		end)
 		self.Thread = thread; self:StartProximityCollection()
+		if self.BagFull then self:ResetCharacterForFullBag() end
 	end
 	function Farm:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
 		if thread then pcall(task.cancel, thread) end
-		self:StopFarming(); self:StopProximityCollection(); Invisicam:SetSource("AutoFarm", false)
+		self:CancelBagReset(); self:StopFarming(); self:StopProximityCollection(); Invisicam:SetSource("AutoFarm", false)
 	end
 	Runtime:Track(Player.CharacterAdded:Connect(function() Farm:StopMotion() end))
 
@@ -251,19 +296,23 @@ return function(API)
 		if not gameplay then return end
 		local coinCollected = gameplay:FindFirstChild("CoinCollected")
 		if coinCollected and coinCollected:IsA("RemoteEvent") then
-			Runtime:Track(coinCollected.OnClientEvent:Connect(function(_, count, maximum)
+			Runtime:Track(coinCollected.OnClientEvent:Connect(function(coinType, count, maximum)
+				if not CoinService:NormalizeKind(coinType) then return end
 				local collected = tonumber(count); local capacity = tonumber(maximum)
 				if not collected or not capacity or capacity <= 0 then return end
-				Farm.BagFull = collected >= capacity
-				if Farm.BagFull then Farm:StopFarming() end
+				if collected >= capacity then
+					Farm.BagFull = true
+					Farm:StopFarming()
+					Farm:ResetCharacterForFullBag()
+				end
 			end))
 		end
-		for _, eventName in ipairs({ "RoundStart", "RoundEndFade" }) do
+		for _, eventName in ipairs({ "RoundStart", "CoinsStarted", "RoundEndFade" }) do
 			local event = gameplay:FindFirstChild(eventName)
 			if event and event:IsA("RemoteEvent") then
 				local isRoundEnd = eventName == "RoundEndFade"
 				Runtime:Track(event.OnClientEvent:Connect(function()
-					Farm.BagFull = false; Farm.RetryAfter = setmetatable({}, { __mode = "k" })
+					Farm:ResetBagState(); Farm.RetryAfter = setmetatable({}, { __mode = "k" })
 					if isRoundEnd then Farm:StopFarming() end
 				end))
 			end
