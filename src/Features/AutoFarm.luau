@@ -2,7 +2,7 @@
 
 return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
-	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
+	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
 
 	-- State
 	local Farm = {
@@ -15,10 +15,7 @@ return function(API)
 		LastProximitySweepAt = 0,
 		BagFull = false,
 		MaintenanceConnection = nil,
-		NoclipConnection = nil,
-		NoclipDescendantConnection = nil,
-		OriginalPartProperties = {},
-		NoclipCharacter = nil,
+		NoclipLease = false,
 		FarmingCharacter = nil,
 		FarmingHumanoid = nil,
 		SavedHumanoidState = nil,
@@ -41,47 +38,13 @@ return function(API)
 	end
 
 	-- Noclip
-	function Farm:EnableNoclip(character)
-		if self.NoclipConnection and self.NoclipCharacter == character then return end
-		self:DisableNoclip(); self.NoclipCharacter = character
-		local function rememberAndDisable(part)
-			if not part:IsA("BasePart") then return end
-			if self.OriginalPartProperties[part] == nil then
-				self.OriginalPartProperties[part] = {
-					CanCollide = part.CanCollide,
-					Massless = part.Massless,
-				}
-			end
-			pcall(function() part.CanCollide = false end)
-		end
-		for _, part in ipairs(character:GetDescendants()) do
-			rememberAndDisable(part)
-		end
-		self.NoclipDescendantConnection = character.DescendantAdded:Connect(rememberAndDisable)
-		self.NoclipConnection = Services.RunService.Stepped:Connect(function()
-			if not self.Enabled or not self.Farming or Player.Character ~= character then self:DisableNoclip(); return end
-			for part in pairs(self.OriginalPartProperties) do
-				if part.Parent then pcall(function() part.CanCollide = false end) end
-			end
-		end)
+	function Farm:EnableNoclip()
+		if self.NoclipLease then return end
+		self.NoclipLease = Noclip:Acquire(self)
 	end
 	function Farm:DisableNoclip()
-		if self.NoclipConnection then
-			pcall(function() self.NoclipConnection:Disconnect() end)
-			self.NoclipConnection = nil
-		end
-		if self.NoclipDescendantConnection then
-			pcall(function() self.NoclipDescendantConnection:Disconnect() end)
-			self.NoclipDescendantConnection = nil
-		end
-		for part, properties in pairs(self.OriginalPartProperties) do
-			if part.Parent then
-				pcall(function()
-					part.CanCollide = properties.CanCollide; part.Massless = properties.Massless
-				end)
-			end
-		end
-		self.OriginalPartProperties = {}; self.NoclipCharacter = nil
+		if not self.NoclipLease then return end
+		self.NoclipLease = false; Noclip:Release(self)
 	end
 
 	-- CoinCollection
@@ -140,7 +103,7 @@ return function(API)
 		local gravity = Instance.new("BodyPosition"); gravity.Name = "FarmGravity"; gravity.MaxForce = Vector3.new(0, math.huge, 0); gravity.D = 1000
 		gravity.P = 10000; gravity.Position = root.Position; gravity.Parent = root; root.CFrame = root.CFrame - Vector3.new(0, 2.5, 0)
 		root.CFrame = root.CFrame * CFrame.Angles(math.rad(90), 0, 0); humanoid.PlatformStand = true; humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false); self:EnableNoclip(character)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false); self:EnableNoclip()
 		self.MaintenanceConnection = Services.RunService.Heartbeat:Connect(function()
 			if
 				not self.Enabled

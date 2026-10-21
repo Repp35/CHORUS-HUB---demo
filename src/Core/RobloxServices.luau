@@ -6,6 +6,7 @@ return function()
 	return {
 		Players = game:GetService("Players"),
 		RunService = game:GetService("RunService"),
+		UserInputService = game:GetService("UserInputService"),
 		Workspace = game:GetService("Workspace"),
 		TweenService = game:GetService("TweenService"),
 		ReplicatedStorage = game:GetService("ReplicatedStorage"),

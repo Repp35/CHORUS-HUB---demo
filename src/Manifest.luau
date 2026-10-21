@@ -12,7 +12,10 @@ return function()
 
 		Features = {
 			{ Name = "ESP", Path = "src/Features/ESP" },
+			{ Name = "Noclip", Path = "src/Features/Noclip" },
 			{ Name = "AutoFarm", Path = "src/Features/AutoFarm" },
+			{ Name = "InfiniteJump", Path = "src/Features/InfiniteJump" },
+			{ Name = "Fly", Path = "src/Features/Fly" },
 			{ Name = "AntiAFK", Path = "src/Features/AntiAFK" },
 			{ Name = "AntiFling", Path = "src/Features/AntiFling" },
 		},

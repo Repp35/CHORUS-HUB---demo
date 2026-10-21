@@ -8,6 +8,10 @@ return function(API)
 	local ESP = {
 		Enabled = false,
 		ShowName = true,
+		NameTextSizeMin = 11,
+		NameTextSizeMax = 14,
+		NameScaleNearDistance = 24,
+		NameScaleFarDistance = 240,
 		RefreshInterval = 0.75,
 		FillTransparency = 0.82,
 		OutlineTransparency = 0,
@@ -25,8 +29,8 @@ return function(API)
 			Murderer = true,
 			Sheriff = true,
 			Innocent = true,
-			CandyCoin = true,
-			Gun = true,
+			CandyCoin = false,
+			Gun = false,
 		},
 		Colors = {
 			Murderer = Color3.fromRGB(255, 65, 65),
@@ -38,6 +42,21 @@ return function(API)
 	}
 
 	local destroySafely = Util.DestroySafely
+	local function getNameColor(color)
+		local hue, saturation, value = color:ToHSV()
+		local lighterSaturation = saturation * 0.58
+		local lighterValue = value + (1 - value) * 0.35
+		return Color3.fromHSV(hue, lighterSaturation, lighterValue)
+	end
+	local function getNameTextSize(esp, distance)
+		local minimum = esp.NameTextSizeMin
+		local maximum = esp.NameTextSizeMax
+		local nearDistance = esp.NameScaleNearDistance
+		local farDistance = esp.NameScaleFarDistance
+		local range = math.max(farDistance - nearDistance, 1)
+		local progress = math.clamp((distance - nearDistance) / range, 0, 1)
+		return math.floor(maximum - (maximum - minimum) * progress + 0.5)
+	end
 	local function destroyPlayerMarker(marker)
 		if not marker then return end
 		destroySafely(marker.Gui); destroySafely(marker.Highlight)
@@ -92,8 +111,8 @@ return function(API)
 		gui.AlwaysOnTop = true; gui.LightInfluence = 0; gui.MaxDistance = 1200; gui.Size = UDim2.fromOffset(200, 24)
 		gui.StudsOffset = Vector3.new(0, headHeight * 0.5 + 0.55, 0); gui.Parent = root; local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "PlayerName"
 		nameLabel.BackgroundTransparency = 1; nameLabel.Size = UDim2.fromScale(1, 1); nameLabel.Font = Enum.Font.GothamBold; nameLabel.Text = target.Name
-		nameLabel.TextColor3 = color
-		nameLabel.TextSize = 13; nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0); nameLabel.TextStrokeTransparency = 0; nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.TextColor3 = getNameColor(color)
+		nameLabel.TextSize = self.NameTextSizeMax; nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0); nameLabel.TextStrokeTransparency = 0; nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		nameLabel.Visible = self.ShowName; nameLabel.Parent = gui
 		return {
 			Character = character,
@@ -105,7 +124,7 @@ return function(API)
 		}
 	end
 	function ESP:RefreshPlayers(roleData)
-		local keep = {}
+		local keep = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for _, target in ipairs(Services.Players:GetPlayers()) do
 			if target ~= Player and target:GetAttribute("Alive") == true then
 				local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -134,7 +153,9 @@ return function(API)
 						marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 					end
 					marker.NameLabel.Text = target.Name
-					marker.NameLabel.TextColor3 = color
+					marker.NameLabel.TextColor3 = getNameColor(color)
+					local distance = localRoot and localRoot:IsA("BasePart") and (localRoot.Position - root.Position).Magnitude or self.NameScaleFarDistance
+					marker.NameLabel.TextSize = getNameTextSize(self, distance)
 					marker.NameLabel.Visible = self.ShowName
 					marker.Highlight.FillColor = color
 					marker.Highlight.FillTransparency = self.FillTransparency
