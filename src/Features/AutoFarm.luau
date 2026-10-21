@@ -15,6 +15,7 @@ return function(API)
 		ProximityConnection = nil,
 		LastProximitySweepAt = 0,
 		BagFull = false,
+		ResetWhenBagFull = false,
 		BagResetTriggered = false,
 		BagResetThread = nil,
 		MaintenanceConnection = nil,
@@ -40,7 +41,8 @@ return function(API)
 		self.LastErrorAt = now; warn("[Chorus MM2] Auto Farm recuperando após erro em " .. context .. ": " .. tostring(errorMessage))
 	end
 	function Farm:ResetCharacterForFullBag()
-		if not self.Enabled or not self.BagFull or self.BagResetTriggered or Runtime.ShuttingDown then return false end
+		if not self.Enabled or not self.BagFull or not self.ResetWhenBagFull or self.BagResetTriggered or Runtime.ShuttingDown then return false end
+		if MatchService:GetLocalRole() ~= "Innocent" then return false end
 		local inMatch, character, humanoid = MatchService:GetContext()
 		if not inMatch or not character or not humanoid then return false end
 		self.BagResetTriggered = true; self:StopFarming()
@@ -49,12 +51,13 @@ return function(API)
 			task.wait(0.5)
 			local canReset = self.Enabled
 				and self.BagFull
+				and self.ResetWhenBagFull
 				and not Runtime.ShuttingDown
 				and Player.Character == character
 				and humanoid.Parent ~= nil
 				and humanoid.Health > 0
 				and Player:GetAttribute("Alive") == true
-			if canReset then
+			if canReset and MatchService:GetLocalRole() == "Innocent" then
 				local resetOk, resetError = pcall(function() humanoid.Health = 0 end)
 				if not resetOk then
 					self.BagResetTriggered = false
@@ -67,6 +70,14 @@ return function(API)
 		end)
 		self.BagResetThread = thread
 		return true
+	end
+	function Farm:SetResetWhenBagFull(enabled)
+		self.ResetWhenBagFull = enabled == true
+		if not self.ResetWhenBagFull then
+			self:CancelBagReset()
+		elseif self.Enabled and self.BagFull then
+			self:ResetCharacterForFullBag()
+		end
 	end
 	function Farm:CancelBagReset()
 		local thread = self.BagResetThread

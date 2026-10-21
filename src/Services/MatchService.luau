@@ -1,7 +1,7 @@
 -- [[ matchservice ]]
 
 return function(API)
-	local Player = API.Player; local MapService = API.Services.Map; local MatchService = {}
+	local Player = API.Player; local Services = API.Roblox; local MapService = API.Services.Map; local MatchService = {}
 
 	-- MatchContext
 	function MatchService:GetContext()
@@ -11,6 +11,14 @@ return function(API)
 		local container = MapService:GetCoinContainer()
 		if not container then return false end
 		return true, character, humanoid, root, container
+	end
+	function MatchService:GetLocalRole()
+		local remote = Services.ReplicatedStorage:FindFirstChild("GetPlayerData", true)
+		if not remote or not remote:IsA("RemoteFunction") then return nil end
+		local ok, data = pcall(function() return remote:InvokeServer() end)
+		if not ok or type(data) ~= "table" then return nil end
+		local profile = data[Player.Name]
+		return type(profile) == "table" and type(profile.Role) == "string" and profile.Role or nil
 	end
 
 	return MatchService

@@ -2,7 +2,7 @@
 
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
-	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
 	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 
@@ -22,6 +22,18 @@ return function(API)
 						if value then Farm:Start()
 						else Farm:Stop() end
 					end,
+				},
+			},
+			{
+				Key = "ResetWhenBagFull",
+				Flag = "ResetWhenBagFull",
+				ParentFlag = "AutoFarm",
+				Type = "Toggle",
+				Config = {
+					Name = "Resetar com a bolsa cheia (Inocente)",
+					Default = false,
+					Save = true,
+					Callback = function(value) Farm:SetResetWhenBagFull(value) end,
 				},
 			},
 			{
@@ -177,6 +189,18 @@ return function(API)
 					ValueName = "x50",
 					Save = true,
 					Callback = function(value) Fly:SetSpeed(value) end,
+				},
+			},
+			{
+				Key = "ResetPlayerKill",
+				Type = "Button",
+				Config = {
+					Name = "Reset Player (Kill)",
+					Callback = function()
+						local character = Player.Character
+						local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+						if humanoid and humanoid.Health > 0 then pcall(function() humanoid.Health = 0 end) end
+					end,
 				},
 			},
 		},
