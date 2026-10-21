@@ -14,12 +14,10 @@ return function(API)
 		UsernameTextSizeMin = 10,
 		NameScaleNearDistance = 24,
 		NameScaleFarDistance = 240,
-		DirectionalDistanceThreshold = 1000,
 		RefreshInterval = 0.75,
 		FillTransparency = 0.82,
 		OutlineTransparency = 0,
 		Thread = nil,
-		RenderConnection = nil,
 		RoleRemote = nil,
 		RoleChangedConnection = nil,
 		RoleData = nil,
@@ -28,8 +26,6 @@ return function(API)
 		RoleDataCacheLifetime = 2,
 		LastErrorAt = 0,
 		PlayerMarkers = {},
-		DirectionalMarkers = {},
-		DirectionalGui = nil,
 		LastKnownRoles = setmetatable({}, { __mode = "k" }),
 		CoinMarkers = {},
 		GunMarkers = {},
@@ -109,101 +105,6 @@ return function(API)
 		end
 		return fallback
 	end
-	local function getCharacterPosition(character, root)
-		if root and root:IsA("BasePart") and root:IsDescendantOf(Workspace) then return root.Position, true end
-		if character and character:IsA("Model") then
-			local ok, pivot = pcall(function() return character:GetPivot() end)
-			if ok then return pivot.Position, character:IsDescendantOf(Workspace) end
-		end
-		if root and root:IsA("BasePart") then return root.Position, false end
-		return nil, false
-	end
-	local function getDirectionalScreenPosition(camera, worldPosition)
-		local projected, onScreen = camera:WorldToViewportPoint(worldPosition); local viewport = camera.ViewportSize; local center = Vector2.new(viewport.X * 0.5, viewport.Y * 0.5)
-		local point = Vector2.new(projected.X, projected.Y); local direction = point - center
-		if projected.Z <= 0 then direction = -direction end
-		if projected.Z > 0 and onScreen then
-			local marginX = math.min(155, center.X); local marginY = math.min(30, center.Y)
-			local safePoint = Vector2.new(
-				math.clamp(point.X, marginX, math.max(viewport.X - marginX, marginX)),
-				math.clamp(point.Y, marginY, math.max(viewport.Y - marginY, marginY))
-			)
-			local edge = (safePoint - point).Magnitude > 0.5; return safePoint, edge, math.deg(math.atan2(direction.Y, direction.X)) + 90
-		end
-		if direction.Magnitude < 0.001 then direction = Vector2.new(0, -1)
-		else direction = direction.Unit end
-		local halfWidth = math.max(center.X - 155, 1); local halfHeight = math.max(center.Y - 30, 1); local horizontalScale = halfWidth / math.max(math.abs(direction.X), 0.001)
-		local verticalScale = halfHeight / math.max(math.abs(direction.Y), 0.001); local edgePoint = center + direction * math.min(horizontalScale, verticalScale)
-		return edgePoint, true, math.deg(math.atan2(direction.Y, direction.X)) + 90
-	end
-	function ESP:EnsureDirectionalGui()
-		if self.DirectionalGui and self.DirectionalGui.Parent then return self.DirectionalGui end
-		local playerGui = Player:FindFirstChildOfClass("PlayerGui")
-		if not playerGui then return nil end
-		local oldGui = playerGui:FindFirstChild("ChorusESPIndicators")
-		if oldGui then destroySafely(oldGui) end
-		local gui = Instance.new("ScreenGui"); gui.Name = "ChorusESPIndicators"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
-		gui.DisplayOrder = 10000; gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = playerGui; self.DirectionalGui = gui
-		return gui
-	end
-	function ESP:CreateDirectionalMarker()
-		local parent = self:EnsureDirectionalGui()
-		if not parent then return nil end
-		local frame = Instance.new("Frame"); frame.Name = "PlayerDirection"; frame.AnchorPoint = Vector2.new(0.5, 0.5); frame.BackgroundColor3 = Color3.fromRGB(8, 11, 18)
-		frame.BackgroundTransparency = 0.32; frame.BorderSizePixel = 0; frame.Size = UDim2.fromOffset(300, 30); frame.Visible = false
-		frame.ZIndex = 100; frame.Parent = parent; local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 7)
-		corner.Parent = frame; local stroke = Instance.new("UIStroke"); stroke.Thickness = 1.25; stroke.Transparency = 0.12
-		stroke.Parent = frame; local pointer = createTextLabel("Direction", frame); pointer.Position = UDim2.fromOffset(2, 1); pointer.Size = UDim2.fromOffset(28, 28)
-		pointer.Font = Enum.Font.GothamBlack; pointer.Text = "▲"; pointer.TextSize = 19; pointer.ZIndex = 101
-		local identityLabel = createTextLabel("Identity", frame); identityLabel.Position = UDim2.fromOffset(34, 1); identityLabel.Size = UDim2.new(1, -40, 0, 22)
-		identityLabel.TextXAlignment = Enum.TextXAlignment.Left; identityLabel.ZIndex = 101; local usernameLabel = createTextLabel("Username", frame); usernameLabel.Position = UDim2.fromOffset(34, 1)
-		usernameLabel.Size = UDim2.new(1, -40, 0, 18); usernameLabel.TextXAlignment = Enum.TextXAlignment.Left; usernameLabel.ZIndex = 101
-		return {
-			Frame = frame,
-			Stroke = stroke,
-			Pointer = pointer,
-			IdentityLabel = identityLabel,
-			UsernameLabel = usernameLabel,
-		}
-	end
-	function ESP:UpdateDirectionalMarker(target, identity, color, distance, position, camera)
-		local marker = self.DirectionalMarkers[target]
-		if not marker or not marker.Frame.Parent then
-			marker = self:CreateDirectionalMarker()
-			if not marker then return false end
-			self.DirectionalMarkers[target] = marker
-		end
-		local point, edge, rotation = getDirectionalScreenPosition(camera, position); local showIdentity = self.ShowIdentity == true; local showUsername = self.ShowUsername == true
-		local identitySize = getNameTextSize(self, distance); local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local labelColor = getLabelColor(color); local y = 4
-		marker.Frame.Position = UDim2.fromOffset(point.X, point.Y); marker.Position = position
-		marker.Stroke.Color = color
-		marker.Pointer.TextColor3 = labelColor
-		marker.Pointer.Rotation = rotation; marker.Pointer.Visible = edge; marker.UsernameLabel.Text = target.Name
-		marker.UsernameLabel.TextColor3 = labelColor
-		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; marker.IdentityLabel.Text = identity .. string.format(" · %.0f st", distance)
-		marker.IdentityLabel.TextColor3 = labelColor
-		marker.IdentityLabel.TextSize = identitySize; marker.IdentityLabel.Visible = showIdentity
-		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(34, y); marker.UsernameLabel.Size = UDim2.new(1, -40, 0, usernameSize + 5); y += usernameSize + 5 end
-		if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(34, y); marker.IdentityLabel.Size = UDim2.new(1, -40, 0, identitySize + 7); y += identitySize + 7 end
-		marker.Frame.Size = UDim2.fromOffset(300, math.max(y + 2, 30)); marker.Frame.Visible = showIdentity or showUsername; return true
-	end
-	function ESP:UpdateDirectionalMarkerPositions()
-		local camera = Workspace.CurrentCamera
-		if not camera then
-			for _, marker in pairs(self.DirectionalMarkers) do
-				marker.Frame.Visible = false
-			end
-			return
-		end
-		for target, marker in pairs(self.DirectionalMarkers) do
-			local character = target.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			local position, isLive = getCharacterPosition(character, root); local profile = self.RoleData and self.RoleData[target.Name]; local isDead = target:GetAttribute("Alive") == false
-				or type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
-			if not position or not isLive or isDead or humanoid and humanoid.Health <= 0 then marker.Frame.Visible = false; continue end
-			marker.Position = position + Vector3.new(0, 2.5, 0); local point, edge, rotation = getDirectionalScreenPosition(camera, marker.Position)
-			marker.Frame.Position = UDim2.fromOffset(point.X, point.Y); marker.Pointer.Rotation = rotation; marker.Pointer.Visible = edge; marker.Frame.Visible = self.ShowIdentity or self.ShowUsername
-		end
-	end
 
 	-- MarkerCleanup
 	function ESP:ClearMap(map)
@@ -217,12 +118,9 @@ return function(API)
 		for _, marker in pairs(self.PlayerMarkers) do
 			destroyMarker(marker)
 		end
-		for _, marker in pairs(self.DirectionalMarkers) do
-			destroySafely(marker.Frame)
-		end
-		table.clear(self.PlayerMarkers); table.clear(self.DirectionalMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers)
-		self:ClearMap(self.GunMarkers)
-		if self.DirectionalGui then destroySafely(self.DirectionalGui); self.DirectionalGui = nil end
+		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers)
+		local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
+		if oldIndicators then destroySafely(oldIndicators) end
 	end
 
 	-- RoleData
@@ -273,7 +171,7 @@ return function(API)
 			Highlight = highlight,
 		}
 	end
-	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance, worldVisible)
+	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
 		local showIdentity = self.ShowIdentity == true; local showUsername = self.ShowUsername == true; local identitySize = getNameTextSize(self, distance)
 		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local offsetY = 0
 		local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
@@ -283,11 +181,10 @@ return function(API)
 		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername
 		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
 		if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(0, offsetY); marker.IdentityLabel.Size = UDim2.new(1, 0, 0, identityHeight); offsetY += identityHeight end
-		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = worldVisible and offsetY > 0
+		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
 	end
 	function ESP:RefreshPlayers(roleData)
-		local keepWorld = {}; local keepDirectional = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
-		local camera = Workspace.CurrentCamera
+		local keepWorld = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for _, target in ipairs(Services.Players:GetPlayers()) do
 			if target == Player then continue end
 			local profile = roleData and roleData[target.Name]; local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -296,56 +193,36 @@ return function(API)
 			if aliveAttribute == false or profileSaysDead or humanoid and humanoid.Health <= 0 then self.LastKnownRoles[target] = nil; continue end
 			local role = type(profile) == "table" and profile.Role or self.LastKnownRoles[target]
 			if type(profile) == "table" and type(profile.Role) == "string" then self.LastKnownRoles[target] = profile.Role end
-			local position, positionIsLive = getCharacterPosition(character, root)
-			if not position or not positionIsLive then continue end
-			local category = getRoleCategory(role); local identity = getRoleLabel(role); local markerPosition = position
-			if category and identity and self.Filters[category] and markerPosition then
-				local color = self.Colors[category]; local origin = localRoot and localRoot:IsA("BasePart") and localRoot.Position
-					or (camera and camera.CFrame.Position)
-				local distance = origin and (origin - markerPosition).Magnitude or self.NameScaleFarDistance; local worldAvailable = character
-					and character:IsDescendantOf(Workspace)
-					and humanoid
-					and humanoid.Health > 0
-					and root
-					and root:IsA("BasePart")
-				local useWorldMarker = worldAvailable and distance < self.DirectionalDistanceThreshold
-				if useWorldMarker then
-					keepWorld[target] = true; local marker = self.PlayerMarkers[target]; local head = character:FindFirstChild("Head")
-					local nameAdornee = head and head:IsA("BasePart") and head or root
-					if
-						not marker
-						or marker.Character ~= character
-						or marker.Root ~= root
-						or marker.NameAdornee ~= nameAdornee
-						or not marker.Gui.Parent
-						or not marker.Highlight.Parent
-					then
-						if marker then destroyMarker(marker) end
-						marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
-					end
-					self:UpdatePlayerLabels(marker, target.Name, identity, color, distance, true)
-					marker.Highlight.FillColor = color
-					marker.Highlight.FillTransparency = self.FillTransparency
-					marker.Highlight.OutlineColor = color
-					marker.Highlight.OutlineTransparency = self.OutlineTransparency
-				else
-					local marker = self.PlayerMarkers[target]
-					if marker then destroyMarker(marker); self.PlayerMarkers[target] = nil end
+			local worldAvailable = character
+				and character:IsDescendantOf(Workspace)
+				and humanoid
+				and humanoid.Health > 0
+				and root
+				and root:IsA("BasePart")
+			local category = getRoleCategory(role); local identity = getRoleLabel(role)
+			if category and identity and self.Filters[category] and worldAvailable then
+				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
+				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
+				if
+					not marker
+					or marker.Character ~= character
+					or marker.Root ~= root
+					or marker.NameAdornee ~= nameAdornee
+					or not marker.Gui.Parent
+					or not marker.Highlight.Parent
+				then
+					if marker then destroyMarker(marker) end
+					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
-				local labelPosition = markerPosition + Vector3.new(0, 2.5, 0)
-				local projected, onScreen
-				if camera then projected, onScreen = camera:WorldToViewportPoint(labelPosition) end
-				local showDirectional = not useWorldMarker or not projected or projected.Z <= 0 or not onScreen
-				if showDirectional and camera then
-					if self:UpdateDirectionalMarker(target, identity, color, distance, labelPosition, camera) then keepDirectional[target] = true end
-				end
+				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
+				marker.Highlight.FillColor = color
+				marker.Highlight.FillTransparency = self.FillTransparency
+				marker.Highlight.OutlineColor = color
+				marker.Highlight.OutlineTransparency = self.OutlineTransparency
 			end
 		end
 		for target, marker in pairs(self.PlayerMarkers) do
 			if not keepWorld[target] then destroyMarker(marker); self.PlayerMarkers[target] = nil end
-		end
-		for target, marker in pairs(self.DirectionalMarkers) do
-			if not keepDirectional[target] then destroySafely(marker.Frame); self.DirectionalMarkers[target] = nil end
 		end
 	end
 
@@ -458,12 +335,7 @@ return function(API)
 	-- Lifecycle
 	function ESP:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		self.Enabled = true; self:ConnectRoleChanges()
-		self.RenderConnection = Services.RunService.RenderStepped:Connect(function()
-			if not self.Enabled then return end
-			local ok, errorMessage = pcall(function() self:UpdateDirectionalMarkerPositions() end)
-			if not ok then self:ReportError("atualização dos indicadores direcionais", errorMessage) end
-		end)
+		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -479,10 +351,6 @@ return function(API)
 	function ESP:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
 		if thread then pcall(task.cancel, thread) end
-		if self.RenderConnection then
-			pcall(function() self.RenderConnection:Disconnect() end)
-			self.RenderConnection = nil
-		end
 		if self.RoleChangedConnection then
 			pcall(function() self.RoleChangedConnection:Disconnect() end)
 			self.RoleChangedConnection = nil

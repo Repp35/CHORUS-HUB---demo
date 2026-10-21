@@ -7,8 +7,6 @@ return function(API)
 		Tabs = {},
 		Screen = nil,
 		Frame = nil,
-		FloatingGui = nil,
-		FloatingButton = nil,
 	}
 
 	UI.Host = Util.GetHost()
@@ -20,30 +18,8 @@ return function(API)
 	end
 	removeChild(UI.Host, "ChorusMobileControls")
 	if UI.Host ~= Services.CoreGui then removeChild(Services.CoreGui, "ChorusMobileControls") end
-	if Runtime.PreviousRuntime then
-		removeChild(UI.Host, "Orion")
-		if UI.Host ~= Services.CoreGui then removeChild(Services.CoreGui, "Orion") end
-	end
-	UI.FloatingGui = Util.Create("ScreenGui", {
-		Name = "ChorusMobileControls",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		DisplayOrder = 10000,
-	}, UI.Host)
-	UI.FloatingButton = Util.Create("TextButton", {
-		Name = "ReopenHub",
-		Size = UDim2.fromOffset(48, 48),
-		Position = UDim2.new(0, 14, 1, -70),
-		BackgroundColor3 = Color3.fromRGB(112, 82, 245),
-		Text = "C",
-		TextColor3 = Color3.new(1, 1, 1),
-		TextSize = 18,
-		Font = Enum.Font.GothamBold,
-		AutoButtonColor = false,
-		Visible = false,
-		ZIndex = 100,
-	}, UI.FloatingGui)
-	Util.Create("UICorner", { CornerRadius = UDim.new(1, 0) }, UI.FloatingButton); Util.Create("UIStroke", { Color = Color3.fromRGB(173, 153, 255), Thickness = 1 }, UI.FloatingButton)
+	removeChild(UI.Host, "Orion")
+	if UI.Host ~= Services.CoreGui then removeChild(Services.CoreGui, "Orion") end
 
 	-- WindowLookup
 	function UI:FindWindow()
@@ -66,7 +42,6 @@ return function(API)
 		local screen, windowFrame = self:FindWindow()
 		if screen then pcall(function() screen.Enabled = open end) end
 		if windowFrame then pcall(function() windowFrame.Visible = open end) end
-		if self.FloatingButton and self.FloatingButton.Parent then self.FloatingButton.Visible = not open or screen == nil end
 	end
 	function UI:MakeTab(name)
 		local _, windowFrame = self:FindWindow()
@@ -119,12 +94,12 @@ return function(API)
 
 	-- Destroy
 	function UI:Destroy()
-		Util.DestroySafely(self.FloatingGui); local screen = self.Screen
-		if not screen then screen = self:FindWindow() end
-		Util.DestroySafely(screen)
+		local screen = self.Screen
+		if not screen or not screen.Parent then screen = self:FindWindow() end
+		Util.DestroySafely(screen); removeChild(self.Host, "Orion"); removeChild(Services.CoreGui, "Orion"); removeChild(self.Host, "ChorusMobileControls")
+		removeChild(Services.CoreGui, "ChorusMobileControls")
 	end
 	Runtime:OnShutdown(function() UI:Destroy() end)
-	Runtime:Track(UI.FloatingButton.Activated:Connect(function() UI:SetOpen(true) end))
 	local Window = Util.InitializeComponent("criar a janela", function()
 		return OrionLib:MakeWindow({
 			Name = Config.Name,
@@ -132,7 +107,7 @@ return function(API)
 			SaveConfig = Config.SaveConfig,
 			HidePremium = Config.HidePremium,
 			IntroEnabled = Config.IntroEnabled,
-			CloseCallback = function() UI:SetOpen(false) end,
+			CloseCallback = function() Runtime:Shutdown() end,
 		})
 	end)
 	if not Window or type(Window.MakeTab) ~= "function" then error("A Orion retornou uma janela incompatível.", 0) end
