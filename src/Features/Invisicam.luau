@@ -1,0 +1,179 @@
+-- [[ invisicam ]]
+
+return function(API)
+	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Workspace = Services.Workspace
+	local CameraAssist = {
+		Enabled = false,
+		Sources = {},
+		Connection = nil,
+		Highlight = nil,
+		RaycastParams = nil,
+		OverlapParams = nil,
+		SavedOcclusionMode = nil,
+		OcclusionModeManaged = false,
+		OriginalLocalTransparency = setmetatable({}, { __mode = "k" }),
+		CurrentOccluders = {},
+		OccluderTransparency = 0.82,
+		LastWarningAt = -math.huge,
+	}
+
+	local OCCLUSION_MODE = Enum.DevCameraOcclusionMode.Invisicam; local OUTLINE_COLOR = Color3.fromRGB(255, 255, 255)
+
+	-- Diagnostics
+	function CameraAssist:_Warn(message)
+		local now = os.clock()
+		if now - self.LastWarningAt < 5 then return end
+		self.LastWarningAt = now; warn("[Chorus MM2] Invisicam: " .. message)
+	end
+
+	-- Visibility
+	function CameraAssist:_FadeOccluder(part)
+		if self.OcclusionModeManaged or not part:IsA("BasePart") then return end
+		if self.OriginalLocalTransparency[part] == nil then
+			local readOk, original = pcall(function() return part.LocalTransparencyModifier end)
+			if not readOk then return end
+			self.OriginalLocalTransparency[part] = original
+		end
+		self.CurrentOccluders[part] = true
+		pcall(function() part.LocalTransparencyModifier = self.OccluderTransparency end)
+	end
+	function CameraAssist:_RestoreUnusedOccluders()
+		for part, original in pairs(self.OriginalLocalTransparency) do
+			if not self.CurrentOccluders[part] then
+				if part.Parent then pcall(function() part.LocalTransparencyModifier = original end) end
+				self.OriginalLocalTransparency[part] = nil
+			end
+		end
+	end
+	function CameraAssist:_RestoreAllOccluders()
+		for part, original in pairs(self.OriginalLocalTransparency) do
+			if part.Parent then pcall(function() part.LocalTransparencyModifier = original end) end
+			self.OriginalLocalTransparency[part] = nil
+		end
+		table.clear(self.CurrentOccluders)
+	end
+	function CameraAssist:_TracePath(origin, target, excludedParts, excludedInstances)
+		local direction = target.Position - origin
+		if direction.Magnitude <= 0.05 then return true end
+		for _ = 1, 12 do
+			self.RaycastParams.FilterDescendantsInstances = excludedInstances; local result = Workspace:Raycast(origin, direction, self.RaycastParams)
+			if not result then return true end
+			local instance = result.Instance
+			if not instance:IsA("BasePart") then return false end
+			self:_FadeOccluder(instance)
+			if excludedParts[instance] then return false end
+			excludedParts[instance] = true; table.insert(excludedInstances, instance)
+		end
+		return false
+	end
+	function CameraAssist:_IsCameraOccluded(camera, character, humanoid, root)
+		local cameraPosition = camera.CFrame.Position; table.clear(self.CurrentOccluders); local excludedParts = { [character] = true }; local excludedInstances = { character }
+		self.RaycastParams.FilterDescendantsInstances = excludedInstances; self.OverlapParams.FilterDescendantsInstances = excludedInstances
+		local insideParts =
+			Workspace:GetPartBoundsInBox(CFrame.new(cameraPosition), Vector3.new(0.08, 0.08, 0.08), self.OverlapParams)
+		local cameraInsidePart = #insideParts > 0
+		for _, part in ipairs(insideParts) do
+			if part:IsA("BasePart") then
+				self:_FadeOccluder(part)
+				if not excludedParts[part] then excludedParts[part] = true; table.insert(excludedInstances, part) end
+			end
+		end
+		local targets = {}; local head = character:FindFirstChild("Head")
+		if head and head:IsA("BasePart") then table.insert(targets, head) end
+		if root and root:IsA("BasePart") then table.insert(targets, root) end
+		if #targets == 0 then
+			local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+			if torso and torso:IsA("BasePart") then table.insert(targets, torso) end
+		end
+		if #targets == 0 then self:_RestoreUnusedOccluders(); return cameraInsidePart end
+		local hasClearPath = false
+		if humanoid.Health > 0 then
+			for _, target in ipairs(targets) do
+				local pathExcludedParts = {}; local pathExcludedInstances = {}
+				for _, instance in ipairs(excludedInstances) do
+					pathExcludedParts[instance] = true; table.insert(pathExcludedInstances, instance)
+				end
+				if self:_TracePath(cameraPosition, target, pathExcludedParts, pathExcludedInstances) then hasClearPath = true end
+			end
+		end
+		self:_RestoreUnusedOccluders(); return cameraInsidePart or not hasClearPath
+	end
+	function CameraAssist:_Update()
+		if not self.Enabled or Runtime.ShuttingDown then return end
+		if self.OcclusionModeManaged then
+			local modeOk, currentMode = pcall(function() return Player.DevCameraOcclusionMode end)
+			if modeOk and currentMode ~= OCCLUSION_MODE then
+				local setOk = pcall(function() Player.DevCameraOcclusionMode = OCCLUSION_MODE end)
+				if not setOk then self.OcclusionModeManaged = false end
+			end
+		end
+		local camera = Workspace.CurrentCamera; local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart"); local highlight = self.Highlight
+		if not highlight then return end
+		if highlight.Adornee ~= character then highlight.Adornee = character end
+		if not camera or not character or not humanoid or humanoid.Health <= 0 then highlight.Enabled = false; self:_RestoreAllOccluders(); return end
+		local ok, occluded = pcall(function() return self:_IsCameraOccluded(camera, character, humanoid, root) end)
+		if ok then highlight.Enabled = occluded
+		else highlight.Enabled = false; self:_RestoreAllOccluders(); self:_Warn("não foi possível determinar se o personagem está visível: " .. tostring(occluded)) end
+	end
+
+	-- Lifecycle
+	function CameraAssist:_HasActiveSource()
+		for _, active in pairs(self.Sources) do
+			if active then return true end
+		end
+		return false
+	end
+	function CameraAssist:SetSource(source, enabled)
+		if type(source) ~= "string" or source == "" or Runtime.ShuttingDown then return false end
+		if enabled then self.Sources[source] = true
+		else self.Sources[source] = nil end
+		if self:_HasActiveSource() then self:_Activate()
+		else self:_Deactivate() end
+		return true
+	end
+	function CameraAssist:_Activate()
+		if self.Enabled or Runtime.ShuttingDown then return end
+		self.Enabled = true
+		local readOk, originalMode = pcall(function() return Player.DevCameraOcclusionMode end)
+		if readOk then
+			local setOk, setError = pcall(function() Player.DevCameraOcclusionMode = OCCLUSION_MODE end)
+			if setOk then self.SavedOcclusionMode = originalMode; self.OcclusionModeManaged = true
+			else self:_Warn("o modo Invisicam não pôde ser ativado: " .. tostring(setError)) end
+		end
+		local setupOk, setupError = pcall(function()
+			local raycastParams = RaycastParams.new(); raycastParams.FilterType = Enum.RaycastFilterType.Exclude; local overlapParams = OverlapParams.new()
+			overlapParams.FilterType = Enum.RaycastFilterType.Exclude; overlapParams.MaxParts = 32; local highlight = Instance.new("Highlight"); highlight.Name = "ChorusInvisicamOutline"
+			highlight.Adornee = Player.Character; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; highlight.FillTransparency = 1; highlight.OutlineColor = OUTLINE_COLOR
+			highlight.OutlineTransparency = 0; highlight.Enabled = false; highlight.Parent = Workspace; self.RaycastParams = raycastParams
+			self.OverlapParams = overlapParams; self.Highlight = highlight
+			self.Connection = Services.RunService.RenderStepped:Connect(function()
+				local updateOk, updateError = pcall(function() self:_Update() end)
+				if not updateOk then self:_Warn("erro ao atualizar a câmera: " .. tostring(updateError)) end
+			end)
+		end)
+		if not setupOk then self:_Deactivate(); self:_Warn("não foi possível iniciar a assistência da câmera: " .. tostring(setupError)) end
+	end
+	function CameraAssist:_Deactivate()
+		self.Enabled = false
+		if self.Connection then
+			pcall(function() self.Connection:Disconnect() end)
+			self.Connection = nil
+		end
+		if self.OcclusionModeManaged then
+			pcall(function() Player.DevCameraOcclusionMode = self.SavedOcclusionMode end)
+		end
+		self.SavedOcclusionMode = nil; self.OcclusionModeManaged = false
+		if self.Highlight then
+			pcall(function() self.Highlight:Destroy() end)
+			self.Highlight = nil
+		end
+		self:_RestoreAllOccluders(); self.RaycastParams = nil; self.OverlapParams = nil
+	end
+	function CameraAssist:Shutdown()
+		table.clear(self.Sources); self:_Deactivate()
+	end
+	Runtime:OnShutdown(function() CameraAssist:Shutdown() end)
+
+	return CameraAssist
+end

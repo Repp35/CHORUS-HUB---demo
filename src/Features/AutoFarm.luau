@@ -3,6 +3,7 @@
 return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
+	local Invisicam = API.Features.Invisicam
 
 	-- State
 	local Farm = {
@@ -218,7 +219,7 @@ return function(API)
 	-- Lifecycle
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		self.Enabled = true
+		self.Enabled = true; Invisicam:SetSource("AutoFarm", true)
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -240,7 +241,7 @@ return function(API)
 	function Farm:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
 		if thread then pcall(task.cancel, thread) end
-		self:StopFarming(); self:StopProximityCollection()
+		self:StopFarming(); self:StopProximityCollection(); Invisicam:SetSource("AutoFarm", false)
 	end
 	Runtime:Track(Player.CharacterAdded:Connect(function() Farm:StopMotion() end))
 

@@ -1,10 +1,10 @@
 -- [[ settings ]]
 
 return function(API)
-	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry")
-	local WindowContext = API.UI.Window; local UI = WindowContext.UI; local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib
-	local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling
-	local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump; local Fly = API.Features.Fly
+	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
+	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
+	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 
 	-- ControlGroups
 	local Settings = {}
@@ -57,17 +57,27 @@ return function(API)
 				},
 			},
 			{
-				Key = "ESPShowName",
-				Flag = "ESPShowName",
+				Key = "ESPShowIdentity",
+				Flag = "ESPShowIdentity",
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
 				Config = {
-					Name = "Nome sobre jogadores",
+					Name = "Identidades (papel / objeto)",
 					Default = true,
 					Save = true,
-					Callback = function(value)
-						ESP.ShowName = value == true
-					end,
+					Callback = function(value) ESP.ShowIdentity = value == true end,
+				},
+			},
+			{
+				Key = "ESPShowUsername",
+				Flag = "ESPShowUsername",
+				ParentFlag = "ESPEnabled",
+				Type = "Toggle",
+				Config = {
+					Name = "Nome de usuário",
+					Default = false,
+					Save = true,
+					Callback = function(value) ESP.ShowUsername = value == true end,
 				},
 			},
 		},
@@ -98,6 +108,17 @@ return function(API)
 						if value then AntiFling:Start()
 						else AntiFling:Stop() end
 					end,
+				},
+			},
+			{
+				Key = "PlayerInvisicam",
+				Flag = "PlayerInvisicam",
+				Type = "Toggle",
+				Config = {
+					Name = "Invisicam",
+					Default = false,
+					Save = true,
+					Callback = function(value) Invisicam:SetSource("Player", value == true) end,
 				},
 			},
 			{
@@ -182,9 +203,7 @@ return function(API)
 				Default = currentOption.Default,
 				Color = ESP.Colors[currentOption.Filter],
 				Save = true,
-				Callback = function(value)
-					ESP.Filters[currentOption.Filter] = value == true
-				end,
+				Callback = function(value) ESP.Filters[currentOption.Filter] = value == true end,
 			},
 
 		})
