@@ -2,7 +2,7 @@
 
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
-	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
 	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 
@@ -36,7 +36,7 @@ return function(API)
 					Default = 23,
 					Increment = 1,
 					ValueName = "studs/s",
-					Save = false,
+					Save = true,
 					Callback = function(value) Farm.Speed = tonumber(value) or Farm.Speed end,
 				},
 			},
@@ -180,6 +180,16 @@ return function(API)
 				},
 			},
 		},
+		Settings = {
+			{
+				Key = "ResetSavedConfig",
+				Type = "Button",
+				Config = {
+					Name = "Resetar configurações salvas",
+					Callback = function() Settings:ResetSavedConfiguration() end,
+				},
+			},
+		},
 	}
 
 	-- ESPOptions
@@ -203,20 +213,64 @@ return function(API)
 				Default = currentOption.Default,
 				Color = ESP.Colors[currentOption.Filter],
 				Save = true,
-				Callback = function(value) ESP.Filters[currentOption.Filter] = value == true end,
+				Callback = function(value) ESP:SetFilter(currentOption.Filter, value) end,
 			},
 
 		})
 	end
 
+	-- ConfigurationReset
+	local function clearSavedConfigFile()
+		local path = Config.ConfigFolder .. "/" .. tostring(game.GameId) .. ".txt"
+		local exists
+		if type(isfile) == "function" then
+			local checkOk, result = pcall(isfile, path)
+			if checkOk then exists = result == true end
+		end
+		if exists == false then return true end
+		if type(delfile) == "function" then
+			local deleteOk = pcall(delfile, path)
+			if deleteOk then
+				if type(isfile) ~= "function" then return true end
+				local verifyOk, stillExists = pcall(isfile, path)
+				if verifyOk and not stillExists then return true end
+			end
+		end
+		if type(writefile) == "function" then
+			local writeOk = pcall(writefile, path, "{}")
+			if writeOk then return true end
+		end
+		return false
+	end
+	function Settings:ResetSavedConfiguration()
+		local fileCleared = clearSavedConfigFile()
+		for _, registry in pairs(self.Registries or {}) do
+			for _, node in ipairs(registry.Items) do
+				local definition = node.Definition
+				local control = node.Control
+				local default = definition.Config and definition.Config.Default
+				if default ~= nil and control and type(control.Set) == "function" then
+					pcall(control.Set, control, default)
+				end
+			end
+		end
+		local content = fileCleared
+			and "As opções foram restauradas para os valores padrão."
+			or "As opções foram restauradas nesta sessão, mas o executor não permitiu limpar o arquivo salvo."
+		if type(OrionLib.MakeNotification) == "function" then
+			pcall(OrionLib.MakeNotification, OrionLib, { Name = "Settings", Content = content, Time = 4 })
+		end
+		return fileCleared
+	end
+
 	-- Initialization
 	function Settings:Init()
 		local registries = {}
-		for _, tabName in ipairs({ "Auto Farm", "Visuals", "Player" }) do
+		for _, tabName in ipairs({ "Auto Farm", "Visuals", "Player", "Settings" }) do
 			local registry = ControlRegistry.new(Tabs[tabName], function() return UI:GetItemContainer(tabName) end)
 			registry:Build(ControlGroups[tabName]); registries[tabName] = registry
 		end
-		API.UI.Registries = registries
+		self.Registries = registries; API.UI.Registries = registries
 		Util.InitializeComponent("inicializar a Orion", function() return OrionLib:Init() end)
 		UI:SetOpen(true); return registries
 	end

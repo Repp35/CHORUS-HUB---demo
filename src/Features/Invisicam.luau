@@ -14,6 +14,8 @@ return function(API)
 		OriginalLocalTransparency = setmetatable({}, { __mode = "k" }),
 		CurrentOccluders = {},
 		OccluderTransparency = 0.82,
+		CheckInterval = 0.1,
+		LastCheckAt = 0,
 		LastWarningAt = -math.huge,
 	}
 
@@ -37,6 +39,13 @@ return function(API)
 		self.CurrentOccluders[part] = true
 		pcall(function() part.LocalTransparencyModifier = self.OccluderTransparency end)
 	end
+	function CameraAssist:_IsOccluder(part)
+		if not part or not part:IsA("BasePart") then return false end
+		local ok, transparency, localTransparency = pcall(function()
+			return part.Transparency, part.LocalTransparencyModifier
+		end)
+		return ok and transparency < 0.98 and localTransparency < 0.98
+	end
 	function CameraAssist:_RestoreUnusedOccluders()
 		for part, original in pairs(self.OriginalLocalTransparency) do
 			if not self.CurrentOccluders[part] then
@@ -52,54 +61,81 @@ return function(API)
 		end
 		table.clear(self.CurrentOccluders)
 	end
-	function CameraAssist:_TracePath(origin, target, excludedParts, excludedInstances)
-		local direction = target.Position - origin
-		if direction.Magnitude <= 0.05 then return true end
-		for _ = 1, 12 do
+	function CameraAssist:_TracePath(origin, targetPosition, excludedParts, excludedInstances)
+		local direction = targetPosition - origin
+		if direction.Magnitude <= 0.05 then return false end
+		local occluded = false
+		for _ = 1, 16 do
 			self.RaycastParams.FilterDescendantsInstances = excludedInstances; local result = Workspace:Raycast(origin, direction, self.RaycastParams)
-			if not result then return true end
+			if not result then return occluded end
 			local instance = result.Instance
-			if not instance:IsA("BasePart") then return false end
-			self:_FadeOccluder(instance)
-			if excludedParts[instance] then return false end
+			if instance == Workspace.Terrain then return true end
+			if not instance:IsA("BasePart") or excludedParts[instance] then return occluded end
+			if self:_IsOccluder(instance) then
+				occluded = true
+				self:_FadeOccluder(instance)
+			end
 			excludedParts[instance] = true; table.insert(excludedInstances, instance)
 		end
-		return false
+		return occluded
+	end
+	local function getBodySamples(part)
+		local size = part.Size
+		local axes = {
+			{ Size = size.X, Vector = part.CFrame.RightVector },
+			{ Size = size.Y, Vector = part.CFrame.UpVector },
+			{ Size = size.Z, Vector = part.CFrame.LookVector },
+		}
+		table.sort(axes, function(left, right) return left.Size > right.Size end)
+		local samples = { part.Position }
+		for index = 1, math.min(2, #axes) do
+			local offset = axes[index].Vector * axes[index].Size * 0.42
+			table.insert(samples, part.Position + offset)
+			table.insert(samples, part.Position - offset)
+		end
+		return samples
 	end
 	function CameraAssist:_IsCameraOccluded(camera, character, humanoid, root)
 		local cameraPosition = camera.CFrame.Position; table.clear(self.CurrentOccluders); local excludedParts = { [character] = true }; local excludedInstances = { character }
 		self.RaycastParams.FilterDescendantsInstances = excludedInstances; self.OverlapParams.FilterDescendantsInstances = excludedInstances
 		local insideParts =
 			Workspace:GetPartBoundsInBox(CFrame.new(cameraPosition), Vector3.new(0.08, 0.08, 0.08), self.OverlapParams)
-		local cameraInsidePart = #insideParts > 0
+		local cameraInsidePart = false
 		for _, part in ipairs(insideParts) do
-			if part:IsA("BasePart") then
+			if self:_IsOccluder(part) then
+				cameraInsidePart = true
 				self:_FadeOccluder(part)
 				if not excludedParts[part] then excludedParts[part] = true; table.insert(excludedInstances, part) end
 			end
 		end
-		local targets = {}; local head = character:FindFirstChild("Head")
-		if head and head:IsA("BasePart") then table.insert(targets, head) end
-		if root and root:IsA("BasePart") then table.insert(targets, root) end
-		if #targets == 0 then
-			local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-			if torso and torso:IsA("BasePart") then table.insert(targets, torso) end
-		end
-		if #targets == 0 then self:_RestoreUnusedOccluders(); return cameraInsidePart end
-		local hasClearPath = false
-		if humanoid.Health > 0 then
-			for _, target in ipairs(targets) do
-				local pathExcludedParts = {}; local pathExcludedInstances = {}
-				for _, instance in ipairs(excludedInstances) do
-					pathExcludedParts[instance] = true; table.insert(pathExcludedInstances, instance)
-				end
-				if self:_TracePath(cameraPosition, target, pathExcludedParts, pathExcludedInstances) then hasClearPath = true end
+		local targets = {}
+		for _, part in ipairs(character:GetChildren()) do
+			if part:IsA("BasePart") and part ~= root and part.Transparency < 1 then
+				table.insert(targets, part)
 			end
 		end
-		self:_RestoreUnusedOccluders(); return cameraInsidePart or not hasClearPath
+		if #targets == 0 then self:_RestoreUnusedOccluders(); return cameraInsidePart end
+		local hasOccludedBodyPart = cameraInsidePart
+		if humanoid.Health > 0 then
+			for _, target in ipairs(targets) do
+				for _, sample in ipairs(getBodySamples(target)) do
+					local pathExcludedParts = {}; local pathExcludedInstances = {}
+					for _, instance in ipairs(excludedInstances) do
+						pathExcludedParts[instance] = true; table.insert(pathExcludedInstances, instance)
+					end
+					if self:_TracePath(cameraPosition, sample, pathExcludedParts, pathExcludedInstances) then
+						hasOccludedBodyPart = true
+					end
+				end
+			end
+		end
+		self:_RestoreUnusedOccluders(); return hasOccludedBodyPart
 	end
 	function CameraAssist:_Update()
 		if not self.Enabled or Runtime.ShuttingDown then return end
+		local now = os.clock()
+		if now - self.LastCheckAt < self.CheckInterval then return end
+		self.LastCheckAt = now
 		if self.OcclusionModeManaged then
 			local modeOk, currentMode = pcall(function() return Player.DevCameraOcclusionMode end)
 			if modeOk and currentMode ~= OCCLUSION_MODE then
@@ -144,7 +180,7 @@ return function(API)
 		local setupOk, setupError = pcall(function()
 			local raycastParams = RaycastParams.new(); raycastParams.FilterType = Enum.RaycastFilterType.Exclude; local overlapParams = OverlapParams.new()
 			overlapParams.FilterType = Enum.RaycastFilterType.Exclude; overlapParams.MaxParts = 32; local highlight = Instance.new("Highlight"); highlight.Name = "ChorusInvisicamOutline"
-			highlight.Adornee = Player.Character; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; highlight.FillTransparency = 1; highlight.OutlineColor = OUTLINE_COLOR
+			highlight.Adornee = Player.Character; highlight.DepthMode = Enum.HighlightDepthMode.Occluded; highlight.FillTransparency = 1; highlight.OutlineColor = OUTLINE_COLOR
 			highlight.OutlineTransparency = 0; highlight.Enabled = false; highlight.Parent = Workspace; self.RaycastParams = raycastParams
 			self.OverlapParams = overlapParams; self.Highlight = highlight
 			self.Connection = Services.RunService.RenderStepped:Connect(function()

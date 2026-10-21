@@ -52,6 +52,10 @@ local TAB_ICONS = {
 		FileName = "player-user.png",
 		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f464.png",
 	},
+	Settings = {
+		FileName = "settings-gear.png",
+		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/2699.png",
+	},
 }
 
 -- Environment

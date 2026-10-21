@@ -172,7 +172,8 @@ return function(API)
 		}
 	end
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
-		local showIdentity = self.ShowIdentity == true; local showUsername = self.ShowUsername == true; local identitySize = getNameTextSize(self, distance)
+		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true
+		local showIdentity = self.ShowIdentity == true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
 		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local offsetY = 0
 		local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
@@ -182,6 +183,23 @@ return function(API)
 		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
 		if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(0, offsetY); marker.IdentityLabel.Size = UDim2.new(1, 0, 0, identityHeight); offsetY += identityHeight end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
+	end
+	function ESP:SetFilter(filter, enabled)
+		if self.Filters[filter] == nil then return false end
+		self.Filters[filter] = enabled == true
+		if enabled then return true end
+		if filter == "Murderer" or filter == "Sheriff" or filter == "Innocent" then
+			for target, marker in pairs(self.PlayerMarkers) do
+				if marker.Category == filter then
+					destroyMarker(marker); self.PlayerMarkers[target] = nil
+				end
+			end
+		elseif filter == "CandyCoin" then
+			self:ClearMap(self.CoinMarkers)
+		elseif filter == "Gun" then
+			self:ClearMap(self.GunMarkers)
+		end
+		return true
 	end
 	function ESP:RefreshPlayers(roleData)
 		local keepWorld = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
@@ -200,7 +218,7 @@ return function(API)
 				and root
 				and root:IsA("BasePart")
 			local category = getRoleCategory(role); local identity = getRoleLabel(role)
-			if category and identity and self.Filters[category] and worldAvailable then
+			if category and identity and self.Filters[category] == true and worldAvailable then
 				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
 				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
 				if
@@ -214,6 +232,7 @@ return function(API)
 					if marker then destroyMarker(marker) end
 					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
+				marker.Category = category
 				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
 				marker.Highlight.FillColor = color
 				marker.Highlight.FillTransparency = self.FillTransparency

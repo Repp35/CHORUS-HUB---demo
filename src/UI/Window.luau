@@ -225,6 +225,7 @@ return function(API)
 		["Auto Farm"] = UI:MakeTab("Auto Farm"),
 		Visuals = UI:MakeTab("Visuals"),
 		Player = UI:MakeTab("Player"),
+		Settings = UI:MakeTab("Settings"),
 	}
 
 	return {
