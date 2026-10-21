@@ -1,8 +1,8 @@
 -- [[ autofarm ]]
 
 return function(API)
-	local Config = API.Config; local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime
-	local Util = API.Util; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
+	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
+	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
 
 	-- State
 	local Farm = {
@@ -287,11 +287,9 @@ return function(API)
 		if not gameplay then return end
 		local coinCollected = gameplay:FindFirstChild("CoinCollected")
 		if coinCollected and coinCollected:IsA("RemoteEvent") then
-			Runtime:Track(coinCollected.OnClientEvent:Connect(function(coinType, count, maximum)
+			Runtime:Track(coinCollected.OnClientEvent:Connect(function(_, count, maximum)
 				local collected = tonumber(count); local capacity = tonumber(maximum)
 				if not collected or not capacity or capacity <= 0 then return end
-				local selected = string.lower(Config.CoinFilter); local received = type(coinType) == "string" and string.lower(coinType) or ""
-				if Config.CoinFilter ~= "Todos" and received ~= selected and received ~= "coin" then return end
 				Farm.BagFull = collected >= capacity
 				if Farm.BagFull then Farm:StopFarming() end
 			end))

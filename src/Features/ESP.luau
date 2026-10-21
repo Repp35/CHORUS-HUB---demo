@@ -9,6 +9,8 @@ return function(API)
 		Enabled = false,
 		ShowName = true,
 		RefreshInterval = 0.75,
+		FillTransparency = 0.82,
+		OutlineTransparency = 0,
 		Thread = nil,
 		RoleRemote = nil,
 		RoleData = nil,
@@ -23,21 +25,23 @@ return function(API)
 			Murderer = true,
 			Sheriff = true,
 			Innocent = true,
-			Candy = true,
-			Coin = true,
+			CandyCoin = true,
 			Gun = true,
 		},
 		Colors = {
 			Murderer = Color3.fromRGB(255, 65, 65),
 			Sheriff = Color3.fromRGB(70, 155, 255),
 			Innocent = Color3.fromRGB(70, 220, 120),
-			Candy = Color3.fromRGB(255, 90, 175),
-			Coin = Color3.fromRGB(255, 210, 65),
+			CandyCoin = Color3.fromRGB(255, 185, 70),
 			Gun = Color3.fromRGB(70, 225, 255),
 		},
 	}
 
 	local destroySafely = Util.DestroySafely
+	local function destroyPlayerMarker(marker)
+		if not marker then return end
+		destroySafely(marker.Gui); destroySafely(marker.Highlight)
+	end
 
 	-- RoleCategories
 	local function getRoleCategory(role)
@@ -55,7 +59,7 @@ return function(API)
 	end
 	function ESP:ClearAll()
 		for _, marker in pairs(self.PlayerMarkers) do
-			destroySafely(marker.Gui)
+			destroyPlayerMarker(marker)
 		end
 		table.clear(self.PlayerMarkers); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers)
 	end
@@ -73,26 +77,31 @@ return function(API)
 		if self.RoleData and os.clock() - self.RoleDataAt <= self.RoleDataCacheLifetime then return self.RoleData end
 		return nil
 	end
+	local function createHighlight(esp, name, adornee, color)
+		local highlight = Instance.new("Highlight"); highlight.Name = name; highlight.Adornee = adornee; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.FillColor = color
+		highlight.FillTransparency = esp.FillTransparency
+		highlight.OutlineColor = color
+		highlight.OutlineTransparency = esp.OutlineTransparency; highlight.Parent = adornee; return highlight
+	end
 
 	-- PlayerMarkers
 	function ESP:CreatePlayerMarker(target, character, root, color)
-		local gui = Instance.new("BillboardGui"); gui.Name = "ChorusPlayerESP"; gui.Adornee = root; gui.AlwaysOnTop = true
-		gui.LightInfluence = 0; gui.MaxDistance = 1200; gui.Size = UDim2.fromOffset(112, 142); gui.StudsOffset = Vector3.new(0, 2.25, 0)
-		gui.Parent = root; local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "PlayerName"; nameLabel.BackgroundTransparency = 1
-		nameLabel.Position = UDim2.fromOffset(0, 0); nameLabel.Size = UDim2.new(1, 0, 0, 20); nameLabel.Font = Enum.Font.GothamBold; nameLabel.Text = target.Name
+		local highlight = createHighlight(self, "ChorusPlayerESP", character, color); local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
+		local headHeight = nameAdornee == head and head.Size.Y or root.Size.Y; local gui = Instance.new("BillboardGui"); gui.Name = "ChorusPlayerName"; gui.Adornee = nameAdornee
+		gui.AlwaysOnTop = true; gui.LightInfluence = 0; gui.MaxDistance = 1200; gui.Size = UDim2.fromOffset(200, 24)
+		gui.StudsOffset = Vector3.new(0, headHeight * 0.5 + 0.55, 0); gui.Parent = root; local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "PlayerName"
+		nameLabel.BackgroundTransparency = 1; nameLabel.Size = UDim2.fromScale(1, 1); nameLabel.Font = Enum.Font.GothamBold; nameLabel.Text = target.Name
 		nameLabel.TextColor3 = color
-		nameLabel.TextSize = 13; nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0); nameLabel.TextStrokeTransparency = 0.15; nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.Visible = self.ShowName; nameLabel.Parent = gui; local box = Instance.new("Frame"); box.Name = "PlayerBox"
-		box.BackgroundTransparency = 1; box.BorderSizePixel = 0; box.Position = UDim2.fromOffset(6, 22); box.Size = UDim2.new(1, -12, 1, -28)
-		box.Parent = gui; local stroke = Instance.new("UIStroke"); stroke.Name = "RoleColor"
-		stroke.Color = color
-		stroke.Thickness = 1.5; stroke.Transparency = 0; stroke.Parent = box
+		nameLabel.TextSize = 13; nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0); nameLabel.TextStrokeTransparency = 0; nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.Visible = self.ShowName; nameLabel.Parent = gui
 		return {
 			Character = character,
 			Root = root,
 			Gui = gui,
 			NameLabel = nameLabel,
-			Stroke = stroke,
+			NameAdornee = nameAdornee,
+			Highlight = highlight,
 		}
 	end
 	function ESP:RefreshPlayers(roleData)
@@ -111,36 +120,57 @@ return function(API)
 					and category
 					and self.Filters[category]
 				then
-					keep[target] = true; local color = self.Colors[category]; local marker = self.PlayerMarkers[target]
-					if not marker or marker.Character ~= character or marker.Root ~= root or not marker.Gui.Parent then
-						if marker then destroySafely(marker.Gui) end
+					keep[target] = true; local color = self.Colors[category]; local marker = self.PlayerMarkers[target]; local head = character:FindFirstChild("Head")
+					local nameAdornee = head and head:IsA("BasePart") and head or root
+					if
+						not marker
+						or marker.Character ~= character
+						or marker.Root ~= root
+						or marker.NameAdornee ~= nameAdornee
+						or not marker.Gui.Parent
+						or not marker.Highlight.Parent
+					then
+						if marker then destroyPlayerMarker(marker) end
 						marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 					end
 					marker.NameLabel.Text = target.Name
 					marker.NameLabel.TextColor3 = color
 					marker.NameLabel.Visible = self.ShowName
-					marker.Stroke.Color = color
+					marker.Highlight.FillColor = color
+					marker.Highlight.FillTransparency = self.FillTransparency
+					marker.Highlight.OutlineColor = color
+					marker.Highlight.OutlineTransparency = self.OutlineTransparency
 				end
 			end
 		end
 		for target, marker in pairs(self.PlayerMarkers) do
-			if not keep[target] then destroySafely(marker.Gui); self.PlayerMarkers[target] = nil end
+			if not keep[target] then destroyPlayerMarker(marker); self.PlayerMarkers[target] = nil end
 		end
 	end
 
 	-- CoinMarkers
+	local function getCoinVisualAdornee(part)
+		local visual = part:FindFirstChild("CoinVisual")
+		if not visual then return part end
+		if visual:IsA("Model") or visual:IsA("BasePart") then return visual end
+		local model = visual:FindFirstChildWhichIsA("Model", true)
+		if model then return model end
+		local mainCoin = visual:FindFirstChild("MainCoin", true)
+		if mainCoin and mainCoin:IsA("BasePart") then return mainCoin end
+		local visualPart = visual:FindFirstChildWhichIsA("BasePart", true); return visualPart or part
+	end
 	function ESP:RefreshCoins(container)
 		local keep = {}
-		for _, part in ipairs(CoinService:GetCollectableParts(container, false)) do
-			local kind = CoinService:GetKind(part); local category = kind == "candy" and "Candy" or kind == "coin" and "Coin" or nil
-			if category and self.Filters[category] then
+		for _, part in ipairs(CoinService:GetCollectableParts(container)) do
+			local kind = CoinService:GetKind(part); local adornee = getCoinVisualAdornee(part)
+			if kind and self.Filters.CandyCoin then
 				keep[part] = true; local marker = self.CoinMarkers[part]
-				if not marker or not marker.Parent then
-					marker = Instance.new("SphereHandleAdornment"); marker.Name = "Chorus" .. category .. "ESP"; marker.Adornee = part
-					marker.Radius = math.max(part.Size.X, part.Size.Y, part.Size.Z) * 0.5 + 0.3; marker.AlwaysOnTop = true; marker.ZIndex = 5; marker.Transparency = 0.25
-					marker.Parent = part; self.CoinMarkers[part] = marker
+				if not marker or not marker.Parent or marker.Adornee ~= adornee then
+					if marker then destroySafely(marker) end
+					marker = createHighlight(self, "ChorusCandyCoinESP", adornee, self.Colors.CandyCoin); self.CoinMarkers[part] = marker
 				end
-				marker.Color3 = self.Colors[category]
+				marker.FillColor = self.Colors.CandyCoin; marker.FillTransparency = self.FillTransparency; marker.OutlineColor = self.Colors.CandyCoin
+				marker.OutlineTransparency = self.OutlineTransparency
 			end
 		end
 		for part, marker in pairs(self.CoinMarkers) do
@@ -164,11 +194,8 @@ return function(API)
 		end
 		for part in pairs(gunParts) do
 			local marker = self.GunMarkers[part]
-			if not marker or not marker.Parent then
-				marker = Instance.new("Highlight"); marker.Name = "ChorusGunESP"; marker.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; marker.FillTransparency = 0.35
-				marker.OutlineTransparency = 0; marker.Adornee = part; marker.Parent = part; self.GunMarkers[part] = marker
-			end
-			marker.FillColor = self.Colors.Gun; marker.OutlineColor = self.Colors.Gun
+			if not marker or not marker.Parent then marker = createHighlight(self, "ChorusGunESP", part, self.Colors.Gun); self.GunMarkers[part] = marker end
+			marker.FillColor = self.Colors.Gun; marker.FillTransparency = self.FillTransparency; marker.OutlineColor = self.Colors.Gun; marker.OutlineTransparency = self.OutlineTransparency
 		end
 		for part, marker in pairs(self.GunMarkers) do
 			if not gunParts[part] then destroySafely(marker); self.GunMarkers[part] = nil end
@@ -180,7 +207,7 @@ return function(API)
 		local inMatch, _, _, _, container = MatchService:GetContext()
 		if not inMatch then self:ClearAll(); self.RoleData = nil; self.RoleDataAt = 0; return end
 		local needsRoleData = self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent; self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil)
-		if self.Filters.Candy or self.Filters.Coin then self:RefreshCoins(container)
+		if self.Filters.CandyCoin then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
 		self:RefreshGuns()
 	end

@@ -1,9 +1,9 @@
 -- [[ settings ]]
 
 return function(API)
-	local Config = API.Config; local Runtime = API.Runtime; local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry")
-	local Window = API.UI.Window; local UI = Window.UI; local SettingsTab = Window.SettingsTab; local OrionLib = Window.OrionLib
-	local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling
+	local Runtime = API.Runtime; local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local Window = API.UI.Window
+	local UI = Window.UI; local SettingsTab = Window.SettingsTab; local OrionLib = Window.OrionLib; local Farm = API.Features.AutoFarm
+	local ESP = API.Features.ESP; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling
 
 	-- Definitions
 	local Settings = {}
@@ -13,8 +13,7 @@ return function(API)
 		{ Name = "Assassino", Filter = "Murderer", Flag = "ESPMurderer" },
 		{ Name = "Xerife + Hero", Filter = "Sheriff", Flag = "ESPSheriff" },
 		{ Name = "Inocentes", Filter = "Innocent", Flag = "ESPInnocent" },
-		{ Name = "Candy", Filter = "Candy", Flag = "ESPCandy" },
-		{ Name = "Coin", Filter = "Coin", Flag = "ESPCoin" },
+		{ Name = "Candy / Coin", Filter = "CandyCoin", Flag = "ESPCandyCoin" },
 		{ Name = "Gun", Filter = "Gun", Flag = "ESPGun" },
 	}
 
@@ -48,24 +47,6 @@ return function(API)
 				ValueName = "studs/s",
 				Save = false,
 				Callback = function(value) Farm.Speed = tonumber(value) or Farm.Speed end,
-			},
-		},
-		{
-			Key = "CoinFilter",
-			Flag = "CoinFilter",
-			ParentFlag = "AutoFarm",
-			Type = "Dropdown",
-			Config = {
-				Name = "Tipo de moeda",
-				Default = "Todos",
-				Options = { "Todos", "Candy", "Coin" },
-				Save = true,
-				Callback = function(value)
-					if value ~= "Todos" and value ~= "Candy" and value ~= "Coin" then return end
-					if Config.CoinFilter == value then return end
-					local restartFarm = Farm.Enabled; Farm:Stop(); Config.CoinFilter = value; Farm.RetryAfter = setmetatable({}, { __mode = "k" })
-					if restartFarm then Farm:Start() end
-				end,
 			},
 		},
 		{

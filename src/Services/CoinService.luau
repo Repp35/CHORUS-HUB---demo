@@ -1,7 +1,6 @@
 -- [[ coinservice ]]
 
 return function(API)
-	local Config = API.Config
 
 	-- Service
 	local CoinService = {}
@@ -22,14 +21,12 @@ return function(API)
 	end
 
 	-- Eligibility
-	function CoinService:IsCollectable(part, container, respectFarmFilter)
+	function CoinService:IsCollectable(part, container)
 		if not part or not part:IsA("BasePart") or not part.Parent or not container then return false end
 		if not part:IsDescendantOf(container) or part:GetAttribute("Collected") then return false end
 		if not part:FindFirstChild("TouchInterest") then return false end
 		local kind = self:GetKind(part)
 		if not kind then return false end
-		local selectedFilter = type(Config.CoinFilter) == "string" and string.lower(Config.CoinFilter) or "todos"
-		if respectFarmFilter ~= false and selectedFilter ~= "todos" and kind ~= selectedFilter then return false end
 		local visual = part:FindFirstChild("CoinVisual"); local isNewMM2Candy = kind == "candy" and part.Transparency == 1
 		if visual then
 			if visual:GetAttribute("Delete") or visual:GetAttribute("Collected") then return false end
@@ -42,11 +39,11 @@ return function(API)
 	end
 
 	-- Enumeration
-	function CoinService:GetCollectableParts(container, respectFarmFilter)
+	function CoinService:GetCollectableParts(container)
 		local parts = {}
 		if not container then return parts end
 		for _, instance in ipairs(container:GetChildren()) do
-			if instance:IsA("BasePart") and self:IsCollectable(instance, container, respectFarmFilter) then table.insert(parts, instance) end
+			if instance:IsA("BasePart") and self:IsCollectable(instance, container) then table.insert(parts, instance) end
 		end
 		return parts
 	end
