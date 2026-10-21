@@ -24,10 +24,12 @@ return function(API)
 		if ok then self.Connection = connection
 		else self.Enabled = false; warn("[Chorus MM2] Não foi possível iniciar o Infinite Jump: " .. tostring(connection)) end
 	end
-
 	function InfiniteJump:Stop()
 		self.Enabled = false; self.Debouncing = false
-		if self.Connection then pcall(function() self.Connection:Disconnect() end); self.Connection = nil end
+		if self.Connection then
+			pcall(function() self.Connection:Disconnect() end)
+			self.Connection = nil
+		end
 	end
 	Runtime:OnShutdown(function() InfiniteJump:Stop() end)
 
