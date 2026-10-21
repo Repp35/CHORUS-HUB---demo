@@ -80,7 +80,7 @@ return function(API)
 			function()
 				return self.Window:MakeTab({
 					Name = name,
-					Icon = name == "Settings" and self:GetSettingsIcon() or "rbxassetid://4483345998",
+					Icon = name == "Player" and self:GetSettingsIcon() or "rbxassetid://4483345998",
 					PremiumOnly = false,
 				})
 
@@ -136,12 +136,17 @@ return function(API)
 		})
 	end)
 	if not Window or type(Window.MakeTab) ~= "function" then error("A Orion retornou uma janela incompatível.", 0) end
-	UI.Window = Window; UI:FindWindow(); local SettingsTab = UI:MakeTab("Settings")
+	UI.Window = Window; UI:FindWindow()
+	local Tabs = {
+		["Auto Farm"] = UI:MakeTab("Auto Farm"),
+		Visuals = UI:MakeTab("Visuals"),
+		Player = UI:MakeTab("Player"),
+	}
 
 	return {
 		UI = UI,
 		Window = Window,
 		OrionLib = OrionLib,
-		SettingsTab = SettingsTab,
+		Tabs = Tabs,
 	}
 end
