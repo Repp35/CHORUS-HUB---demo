@@ -114,7 +114,7 @@ return function(API)
 		local enterOk = pcall(touchFunction, root, coin, 0); local exitOk = pcall(touchFunction, root, coin, 1)
 		return enterOk and exitOk
 	end
-	function Farm:TouchCoinInRange(root, coin, container)
+	function Farm:TouchCoinInRange(root, coin, container, coinPosition)
 		if
 			not self.Enabled
 			or not self.Farming
@@ -124,7 +124,8 @@ return function(API)
 		then
 			return false
 		end
-		if (root.Position - coin.Position).Magnitude > TOUCH_DISTANCE then return false end
+		coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin]
+		if not coinPosition or (root.Position - coinPosition).Magnitude > TOUCH_DISTANCE then return false end
 		local now = os.clock()
 		if (self.RetryAfter[coin] or 0) <= now then
 			self:TouchOnce(root, coin); self.RouteRevision += 1
@@ -144,7 +145,9 @@ return function(API)
 			local ok, errorMessage = xpcall(function()
 				local inMatch, _, _, root, container = MatchService:GetContext()
 				if not inMatch then return end
-				for _, coin in ipairs(CoinService:GetCollectableParts(container)) do self:TouchCoinInRange(root, coin, container) end
+				for coin, coinPosition in pairs(MapService:GetCoinPositions(container)) do
+					self:TouchCoinInRange(root, coin, container, coinPosition)
+				end
 			end, Util.FormatError)
 			if not ok then self:ReportError("coleta por proximidade", errorMessage) end
 		end)
@@ -231,12 +234,13 @@ return function(API)
 	function Farm:StopMotion() self:StopFarming() end
 
 	-- CoinCollectionLoop
-	function Farm:CollectCoin(coin, character, humanoid, root, container)
+	function Farm:CollectCoin(coin, character, humanoid, root, container, coinPosition)
 		if not self.Enabled or not CoinService:IsCollectable(coin, container) then return end
 		local succeeded, errorMessage = xpcall(function()
 			if self.Farming and self.FarmingCharacter ~= character then self:StopFarming() end
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
-			local speed = math.max(tonumber(self.Speed) or 23, 1); local target = coin.Position - Vector3.new(0, 2.5, 0)
+			coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin] or coin.Position
+			local speed = math.max(tonumber(self.Speed) or 23, 1); local target = coinPosition - Vector3.new(0, 2.5, 0)
 			local distanceToTarget = (target - root.Position).Magnitude; local duration = math.max(distanceToTarget / speed, 1 / 60)
 			local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
 			local tween = Services.TweenService:Create(
@@ -267,7 +271,7 @@ return function(API)
 				then
 					break
 				end
-				if self.RouteRevision ~= routeRevision or self:TouchCoinInRange(root, coin, container) then break end
+				if self.RouteRevision ~= routeRevision or self:TouchCoinInRange(root, coin, container, coinPosition) then break end
 				if tween.PlaybackState ~= Enum.PlaybackState.Playing then break end
 				Services.RunService.Heartbeat:Wait()
 			end
@@ -283,7 +287,7 @@ return function(API)
 				and coin:IsDescendantOf(container)
 				and CoinService:IsCollectable(coin, container)
 			then
-				if not self:TouchCoinInRange(root, coin, container) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
+				if not self:TouchCoinInRange(root, coin, container, coinPosition) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
 			end
 		end, Util.FormatError)
 		if not succeeded then
@@ -303,8 +307,8 @@ return function(API)
 					local inMatch, character, humanoid, root, container = MatchService:GetContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
-					local coin = MapService:GetNearestCoin(container, root.Position, self.RetryAfter)
-					if coin then self:CollectCoin(coin, character, humanoid, root, container)
+					local coin, _, coinPosition = MapService:GetNearestCoin(container, root.Position, self.RetryAfter)
+					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
 					else self:StopFarming(); task.wait(0.05) end
 				end, Util.FormatError)
 				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
