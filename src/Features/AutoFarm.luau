@@ -4,6 +4,8 @@ return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
 	local Invisicam = API.Features.Invisicam
+	local TOUCH_DISTANCE = 7.5
+	local TOUCH_RETRY_DELAY = 0.2
 
 	-- State
 	local Farm = {
@@ -14,6 +16,7 @@ return function(API)
 		Tween = nil,
 		ProximityConnection = nil,
 		LastProximitySweepAt = 0,
+		RouteRevision = 0,
 		BagFull = false,
 		ResetWhenBagFull = false,
 		BagResetTriggered = false,
@@ -107,8 +110,27 @@ return function(API)
 	function Farm:TouchOnce(root, coin)
 		if not self.Enabled or not root or not root.Parent or not coin or not coin.Parent then return end
 		local touchFunction = getTouchFunction()
-		if not touchFunction then return end
-		pcall(touchFunction, root, coin, 0); pcall(touchFunction, root, coin, 1)
+		if not touchFunction then return false end
+		local enterOk = pcall(touchFunction, root, coin, 0); local exitOk = pcall(touchFunction, root, coin, 1)
+		return enterOk and exitOk
+	end
+	function Farm:TouchCoinInRange(root, coin, container)
+		if
+			not self.Enabled
+			or not self.Farming
+			or not root
+			or not root.Parent
+			or not CoinService:IsCollectable(coin, container)
+		then
+			return false
+		end
+		if (root.Position - coin.Position).Magnitude > TOUCH_DISTANCE then return false end
+		local now = os.clock()
+		if (self.RetryAfter[coin] or 0) <= now then
+			self:TouchOnce(root, coin); self.RouteRevision += 1
+			self.RetryAfter[coin] = now + TOUCH_RETRY_DELAY
+		end
+		return true
 	end
 
 	-- ProximityCollection
@@ -117,14 +139,12 @@ return function(API)
 		self.ProximityConnection = Services.RunService.Heartbeat:Connect(function()
 			if not self.Enabled or not self.Farming or self.BagFull then return end
 			local now = os.clock()
-			if now - self.LastProximitySweepAt < 0.1 then return end
+			if now - self.LastProximitySweepAt < 0.04 then return end
 			self.LastProximitySweepAt = now
 			local ok, errorMessage = xpcall(function()
 				local inMatch, _, _, root, container = MatchService:GetContext()
 				if not inMatch then return end
-				for _, coin in ipairs(CoinService:GetCollectableParts(container)) do
-					if (root.Position - coin.Position).Magnitude <= 7.5 then self:TouchOnce(root, coin) end
-				end
+				for _, coin in ipairs(CoinService:GetCollectableParts(container)) do self:TouchCoinInRange(root, coin, container) end
 			end, Util.FormatError)
 			if not ok then self:ReportError("coleta por proximidade", errorMessage) end
 		end)
@@ -211,19 +231,20 @@ return function(API)
 	function Farm:StopMotion() self:StopFarming() end
 
 	-- CoinCollectionLoop
-	function Farm:CollectCoin(coin, character, humanoid, root, distance, container)
+	function Farm:CollectCoin(coin, character, humanoid, root, container)
 		if not self.Enabled or not CoinService:IsCollectable(coin, container) then return end
 		local succeeded, errorMessage = xpcall(function()
 			if self.Farming and self.FarmingCharacter ~= character then self:StopFarming() end
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
-			local speed = math.max(tonumber(self.Speed) or 23, 1); local duration = math.max(distance / speed, 0.08); local target = coin.Position - Vector3.new(0, 2.5, 0)
+			local speed = math.max(tonumber(self.Speed) or 23, 1); local target = coin.Position - Vector3.new(0, 2.5, 0)
+			local distanceToTarget = (target - root.Position).Magnitude; local duration = math.max(distanceToTarget / speed, 1 / 60)
 			local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
 			local tween = Services.TweenService:Create(
 				root,
 				TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 				{ CFrame = targetCFrame }
 			)
-			self.Tween = tween; tween:Play(); local deadline = os.clock() + duration + 1.25; local nextPulseAt = 0
+			self.Tween = tween; tween:Play(); local deadline = os.clock() + duration + 0.5; local routeRevision = self.RouteRevision
 			while
 				self.Enabled
 				and self.Farming
@@ -246,8 +267,8 @@ return function(API)
 				then
 					break
 				end
-				local currentDistance = (root.Position - coin.Position).Magnitude
-				if currentDistance <= 7.5 and os.clock() >= nextPulseAt then self:TouchOnce(root, coin); nextPulseAt = os.clock() + 0.18 end
+				if self.RouteRevision ~= routeRevision or self:TouchCoinInRange(root, coin, container) then break end
+				if tween.PlaybackState ~= Enum.PlaybackState.Playing then break end
 				Services.RunService.Heartbeat:Wait()
 			end
 			if self.Tween == tween then
@@ -256,19 +277,19 @@ return function(API)
 			end
 			if
 				self.Enabled
+				and self.Farming
 				and root.Parent
 				and coin.Parent
 				and coin:IsDescendantOf(container)
-				and (root.Position - coin.Position).Magnitude <= 10
+				and CoinService:IsCollectable(coin, container)
 			then
-				for _ = 1, 4 do
-					if not self.Enabled or not coin.Parent or not CoinService:IsCollectable(coin, container) then break end
-					self:TouchOnce(root, coin); task.wait(0.06)
-				end
+				if not self:TouchCoinInRange(root, coin, container) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
 			end
 		end, Util.FormatError)
-		if not succeeded then self:StopFarming(); self:ReportError("coleta", errorMessage) end
-		self.RetryAfter[coin] = os.clock() + (succeeded and 0.35 or 0.8)
+		if not succeeded then
+			self:StopFarming(); self.RetryAfter[coin] = os.clock() + 0.8
+			self:ReportError("coleta", errorMessage)
+		end
 	end
 
 	-- Lifecycle
@@ -282,9 +303,9 @@ return function(API)
 					local inMatch, character, humanoid, root, container = MatchService:GetContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
-					local coin, distance = MapService:GetNearestCoin(container, root.Position, self.RetryAfter)
-					if coin then self:CollectCoin(coin, character, humanoid, root, distance, container)
-					else self:StopFarming(); task.wait(0.25) end
+					local coin = MapService:GetNearestCoin(container, root.Position, self.RetryAfter)
+					if coin then self:CollectCoin(coin, character, humanoid, root, container)
+					else self:StopFarming(); task.wait(0.05) end
 				end, Util.FormatError)
 				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
 			end
