@@ -68,6 +68,10 @@ return function(API)
 		self.Speed = math.clamp(math.floor(speed + 0.5), 1, 200)
 		return true
 	end
+	function Fly:GetMovementSpeed()
+		if not self.Enabled then return 0 end
+		return self.Speed * SPEED_SCALE
+	end
 	function Fly:LoadControlModule()
 		if self.ControlModule then
 			return self.ControlModule

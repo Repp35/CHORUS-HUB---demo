@@ -287,6 +287,7 @@ return function(API)
 				if tween.PlaybackState ~= Enum.PlaybackState.Playing then break end
 				Services.RunService.Heartbeat:Wait()
 			end
+			local routeCompleted = tween.PlaybackState == Enum.PlaybackState.Completed
 			if self.Tween == tween then
 				pcall(function() tween:Cancel() end)
 				self.Tween = nil
@@ -301,7 +302,7 @@ return function(API)
 			then
 				if not self:TouchCoinInRange(root, coin, container, coinPosition) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
 			end
-			if coin.Parent and coin:IsDescendantOf(container) and CoinService:IsCollectable(coin, container) then
+			if routeCompleted and coin.Parent and coin:IsDescendantOf(container) and CoinService:IsCollectable(coin, container) then
 				self.PassedCoins[coin] = true
 			end
 		end, Util.FormatError)
