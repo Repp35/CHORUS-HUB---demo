@@ -74,14 +74,15 @@ return function(API)
 	end
 
 	-- NearestCoin
-	function MapService:GetNearestCoin(container, position, retryAfter)
+	function MapService:GetNearestCoin(container, position, retryAfter, passedCoins)
 		if not container or not container.Parent then return nil, math.huge end
+		retryAfter = retryAfter or {}
 		local nearest, nearestDistance, nearestPosition = nil, math.huge, nil; local now = os.clock()
 		for coin, coinPosition in pairs(self:GetCoinPositions(container)) do
 			local retryAt = retryAfter[coin] or 0
 			if not coin.Parent or not coin:IsDescendantOf(container) then
 				self.CachedCoinPositions[coin] = nil
-			elseif retryAt <= now and CoinService:IsCollectable(coin, container) then
+			elseif retryAt <= now and not (passedCoins and passedCoins[coin]) and CoinService:IsCollectable(coin, container) then
 				local currentPosition = coin.Position
 				if (currentPosition - coinPosition).Magnitude > 0.1 then
 					coinPosition = currentPosition

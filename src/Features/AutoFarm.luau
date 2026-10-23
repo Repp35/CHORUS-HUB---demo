@@ -5,7 +5,7 @@ return function(API)
 	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
 	local Invisicam = API.Features.Invisicam
 	local TOUCH_DISTANCE = 3.5
-	local TOUCH_RETRY_DELAY = 0.75
+	local TOUCH_RETRY_DELAY = 0.12
 	local PASS_THROUGH_DISTANCE = 1.5
 
 	-- State
@@ -27,6 +27,8 @@ return function(API)
 		FarmingHumanoid = nil,
 		SavedHumanoidState = nil,
 		RetryAfter = setmetatable({}, { __mode = "k" }),
+		PassedCoins = setmetatable({}, { __mode = "k" }),
+		PassedContainer = nil,
 		LastErrorAt = 0,
 	}
 
@@ -120,6 +122,7 @@ return function(API)
 			or not self.Farming
 			or not root
 			or not root.Parent
+			or self.PassedCoins[coin]
 			or not CoinService:IsCollectable(coin, container)
 		then
 			return false
@@ -128,8 +131,8 @@ return function(API)
 		if not coinPosition or (root.Position - coinPosition).Magnitude > TOUCH_DISTANCE then return false end
 		local now = os.clock()
 		if (self.RetryAfter[coin] or 0) <= now then
-			self:TouchOnce(root, coin)
-			self.RetryAfter[coin] = now + TOUCH_RETRY_DELAY
+			local touched = self:TouchOnce(root, coin)
+			self.RetryAfter[coin] = now + (touched and TOUCH_RETRY_DELAY or 0.05)
 		end
 		return true
 	end
@@ -288,6 +291,9 @@ return function(API)
 			then
 				if not self:TouchCoinInRange(root, coin, container, coinPosition) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
 			end
+			if coin.Parent and coin:IsDescendantOf(container) and CoinService:IsCollectable(coin, container) then
+				self.PassedCoins[coin] = true
+			end
 		end, Util.FormatError)
 		if not succeeded then
 			self:StopFarming(); self.RetryAfter[coin] = os.clock() + 0.8
@@ -298,7 +304,7 @@ return function(API)
 	-- Lifecycle
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		self.Enabled = true; Invisicam:SetSource("AutoFarm", true)
+		self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -306,9 +312,19 @@ return function(API)
 					local inMatch, character, humanoid, root, container = MatchService:GetContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
-					local coin, _, coinPosition = MapService:GetNearestCoin(container, root.Position, self.RetryAfter)
+					if self.PassedContainer ~= container then
+						table.clear(self.PassedCoins); self.PassedContainer = container
+					end
+					local coin, _, coinPosition = MapService:GetNearestCoin(container, root.Position, self.RetryAfter, self.PassedCoins)
 					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
-					else self:StopFarming(); task.wait(0.05) end
+					else
+						-- Once every current coin has been passed, start another collection cycle.
+						if next(self.PassedCoins) then
+							table.clear(self.PassedCoins); task.wait(0.15)
+						else
+							self:StopFarming(); task.wait(0.05)
+						end
+					end
 				end, Util.FormatError)
 				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
 			end
@@ -347,7 +363,7 @@ return function(API)
 			if event and event:IsA("RemoteEvent") then
 				local isRoundEnd = eventName == "RoundEndFade"
 				Runtime:Track(event.OnClientEvent:Connect(function()
-					Farm:ResetBagState(); Farm.RetryAfter = setmetatable({}, { __mode = "k" })
+					Farm:ResetBagState(); Farm.RetryAfter = setmetatable({}, { __mode = "k" }); Farm.PassedCoins = setmetatable({}, { __mode = "k" }); Farm.PassedContainer = nil
 					if isRoundEnd then Farm:StopFarming() end
 				end))
 			end
