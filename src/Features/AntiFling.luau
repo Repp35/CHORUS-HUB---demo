@@ -31,6 +31,7 @@ return function(API)
 		MovementTolerance = 1.5,
 		JumpVelocityLimit = 110,
 		SafeFloorCheckDistance = 12,
+		FallbackFloorCheckDistance = 10000,
 		SafeCheckInterval = 0.1,
 		RecoveryDuration = 0.25,
 		LastWarningAt = -math.huge,
@@ -161,8 +162,8 @@ return function(API)
 		if not Util.IsFiniteVector3(look) or look.Magnitude <= 0.001 then return CFrame.new(position) end
 		return CFrame.lookAt(position, position + look.Unit)
 	end
-	function AntiFling:_GroundedCFrame(position, root, humanoid, character)
-		local floor = self:_FindFloor(position, character, self.SafeFloorCheckDistance)
+	function AntiFling:_GroundedCFrame(position, root, humanoid, character, checkDistance)
+		local floor = self:_FindFloor(position, character, checkDistance or self.SafeFloorCheckDistance)
 		if not floor then return nil end
 		local height = humanoid.HipHeight + root.Size.Y * 0.5 + 0.25
 		local groundedPosition = floor.Position + Vector3.new(0, height, 0)
@@ -193,6 +194,7 @@ return function(API)
 		self.LastPosition = nil; self.LastSampleAt = 0; self.LastSafeCFrame = nil
 		self.RecoveryCFrame = nil; self.RecoveryUntil = 0; self.LastSafeCheckAt = 0
 		self.LastSafeCFrame = self:_GroundedCFrame(root.Position, root, humanoid, character)
+			or self:_GroundedCFrame(root.Position, root, humanoid, character, self.FallbackFloorCheckDistance)
 			or self:_GetSpawnCFrame(root, humanoid, character)
 	end
 	function AntiFling:_RememberSafePosition(root, humanoid, character)
@@ -213,7 +215,9 @@ return function(API)
 	end
 	function AntiFling:_ApplyRecovery(root, humanoid, now)
 		local safeCFrame = self.RecoveryCFrame or self.LastSafeCFrame
-		if not safeCFrame and self.LastPosition then safeCFrame = self:_GroundedCFrame(self.LastPosition, root, humanoid, self.LocalCharacter) end
+		if not safeCFrame and self.LastPosition then
+			safeCFrame = self:_GroundedCFrame(self.LastPosition, root, humanoid, self.LocalCharacter, self.FallbackFloorCheckDistance)
+		end
 		if not safeCFrame then safeCFrame = self:_GetSpawnCFrame(root, humanoid, self.LocalCharacter) end
 		if not safeCFrame then
 			pcall(function() root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero end)
