@@ -318,12 +318,8 @@ return function(API)
 					local coin, _, coinPosition = MapService:GetNearestCoin(container, root.Position, self.RetryAfter, self.PassedCoins)
 					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
 					else
-						-- Once every current coin has been passed, start another collection cycle.
-						if next(self.PassedCoins) then
-							table.clear(self.PassedCoins); task.wait(0.15)
-						else
-							self:StopFarming(); task.wait(0.05)
-						end
+						-- Keep visited coins excluded; wait for the map cache to discover new ones.
+						self:StopFarming(); task.wait(0.25)
 					end
 				end, Util.FormatError)
 				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
