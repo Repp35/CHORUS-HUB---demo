@@ -314,7 +314,7 @@ return function(API)
 	-- Lifecycle
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true, false)
+		self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
