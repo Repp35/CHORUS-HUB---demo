@@ -11,6 +11,5 @@ return function()
 		IntroEnabled = false,
 		OrionSource = "https://raw.githubusercontent.com/Qanuir/orion-ui/refs/heads/main/source.lua",
 		MapRefreshInterval = 1,
-		CoinSearchRadius = 200,
 	}
 end

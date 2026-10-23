@@ -1,7 +1,7 @@
 -- [[ mapservice ]]
 
 return function(API)
-	local Config = API.Config; local Services = API.Roblox; local Runtime = API.Runtime; local CoinService = API.Services.Coin
+	local Services = API.Roblox; local Runtime = API.Runtime; local CoinService = API.Services.Coin; local Util = API.Util
 
 	-- Cache
 	local MapService = {
@@ -16,7 +16,9 @@ return function(API)
 		if connection then pcall(function() connection:Disconnect() end) end
 	end
 	local function cacheCoinPosition(coin)
-		if coin and coin:IsA("BasePart") then MapService.CachedCoinPositions[coin] = coin.Position end
+		if not coin or not coin:IsA("BasePart") then return end
+		local ok, position = pcall(function() return coin.Position end)
+		if ok and Util.IsFiniteVector3(position) then MapService.CachedCoinPositions[coin] = position end
 	end
 	local function replaceCoinPositionCache(container)
 		if MapService.CachedCoinContainer == container then return MapService.CachedCoinPositions end
@@ -76,6 +78,7 @@ return function(API)
 	-- NearestCoin
 	function MapService:GetNearestCoin(container, position, retryAfter, passedCoins)
 		if not container or not container.Parent then return nil, math.huge end
+		if not Util.IsFiniteVector3(position) then return nil, math.huge end
 		retryAfter = retryAfter or {}
 		local nearest, nearestDistance, nearestPosition = nil, math.huge, nil; local now = os.clock()
 		for coin, coinPosition in pairs(self:GetCoinPositions(container)) do
@@ -83,14 +86,18 @@ return function(API)
 			if not coin.Parent or not coin:IsDescendantOf(container) then
 				self.CachedCoinPositions[coin] = nil
 			elseif retryAt <= now and not (passedCoins and passedCoins[coin]) and CoinService:IsCollectable(coin, container) then
-				local currentPosition = coin.Position
-				if (currentPosition - coinPosition).Magnitude > 0.1 then
-					coinPosition = currentPosition
-					self.CachedCoinPositions[coin] = currentPosition
-				end
-				local distance = (position - coinPosition).Magnitude
-				if distance <= Config.CoinSearchRadius and distance < nearestDistance then
-					nearest, nearestDistance, nearestPosition = coin, distance, coinPosition
+				local ok, currentPosition = pcall(function() return coin.Position end)
+				if ok and Util.IsFiniteVector3(currentPosition) then
+					if (currentPosition - coinPosition).Magnitude > 0.1 then
+						coinPosition = currentPosition
+						self.CachedCoinPositions[coin] = currentPosition
+					end
+					local distance = (position - coinPosition).Magnitude
+					if distance == distance and distance < math.huge and distance < nearestDistance then
+						nearest, nearestDistance, nearestPosition = coin, distance, coinPosition
+					end
+				else
+					self.CachedCoinPositions[coin] = nil
 				end
 			end
 		end

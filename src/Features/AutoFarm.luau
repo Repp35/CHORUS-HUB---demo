@@ -171,6 +171,7 @@ return function(API)
 			or humanoid.Health <= 0
 			or not root
 			or Player:GetAttribute("Alive") ~= true
+			or not Util.IsFiniteVector3(root.Position)
 		then
 			return false
 		end
@@ -243,9 +244,15 @@ return function(API)
 			if self.Farming and self.FarmingCharacter ~= character then self:StopFarming() end
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
 			coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin] or coin.Position
-			local speed = math.max(tonumber(self.Speed) or 23, 1); local target = coinPosition - Vector3.new(0, 2.5, 0)
+			if not Util.IsFiniteVector3(coinPosition) or not Util.IsFiniteVector3(root.Position) then return end
+			local speed = tonumber(self.Speed)
+			if not speed or speed ~= speed or speed == math.huge then speed = 23 end
+			speed = math.max(speed, 1)
+			local target = coinPosition - Vector3.new(0, 2.5, 0)
 			local approach = target - root.Position; local approachDistance = approach.Magnitude
+			if approachDistance ~= approachDistance or approachDistance == math.huge then return end
 			if approachDistance > 0.001 then target += approach.Unit * PASS_THROUGH_DISTANCE end
+			if not Util.IsFiniteVector3(target) then return end
 			local duration = math.max((target - root.Position).Magnitude / speed, 1 / 60)
 			local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
 			local tween = Services.TweenService:Create(
@@ -270,6 +277,9 @@ return function(API)
 					or activeHumanoid ~= humanoid
 					or activeRoot ~= root
 					or activeContainer ~= container
+					or not coin.Parent
+					or not coin:IsDescendantOf(container)
+					or not CoinService:IsCollectable(coin, container)
 				then
 					break
 				end

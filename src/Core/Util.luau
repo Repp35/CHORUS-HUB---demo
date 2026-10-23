@@ -2,6 +2,16 @@
 
 return function(API)
 	local Util = {}
+	local MAX_WORLD_COORDINATE = 1000000
+
+	-- Roblox physics cannot use NaN, infinity, or unbounded world coordinates safely.
+	function Util.IsFiniteVector3(value)
+		if typeof(value) ~= "Vector3" then return false end
+		return value.X == value.X and value.Y == value.Y and value.Z == value.Z
+			and math.abs(value.X) < MAX_WORLD_COORDINATE
+			and math.abs(value.Y) < MAX_WORLD_COORDINATE
+			and math.abs(value.Z) < MAX_WORLD_COORDINATE
+	end
 
 	-- Diagnostics
 	function Util.FormatError(errorMessage)
