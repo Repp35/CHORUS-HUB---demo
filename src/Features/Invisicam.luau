@@ -5,6 +5,7 @@ return function(API)
 	local CameraAssist = {
 		Enabled = false,
 		Sources = {},
+		HighlightSources = {},
 		Connection = nil,
 		Highlight = nil,
 		RaycastParams = nil,
@@ -149,7 +150,7 @@ return function(API)
 		if highlight.Adornee ~= character then highlight.Adornee = character end
 		if not camera or not character or not humanoid or humanoid.Health <= 0 then highlight.Enabled = false; self:_RestoreAllOccluders(); return end
 		local ok, occluded = pcall(function() return self:_IsCameraOccluded(camera, character, humanoid, root) end)
-		if ok then highlight.Enabled = occluded
+		if ok then highlight.Enabled = occluded and self:_HasHighlightSource()
 		else highlight.Enabled = false; self:_RestoreAllOccluders(); self:_Warn("não foi possível determinar se o personagem está visível: " .. tostring(occluded)) end
 	end
 
@@ -160,10 +161,21 @@ return function(API)
 		end
 		return false
 	end
-	function CameraAssist:SetSource(source, enabled)
+	function CameraAssist:_HasHighlightSource()
+		for source, active in pairs(self.HighlightSources) do
+			if active and self.Sources[source] then return true end
+		end
+		return false
+	end
+	function CameraAssist:SetSource(source, enabled, showHighlight)
 		if type(source) ~= "string" or source == "" or Runtime.ShuttingDown then return false end
-		if enabled then self.Sources[source] = true
-		else self.Sources[source] = nil end
+		if enabled then
+			self.Sources[source] = true
+			if showHighlight == false then self.HighlightSources[source] = nil
+			else self.HighlightSources[source] = true end
+		else
+			self.Sources[source] = nil; self.HighlightSources[source] = nil
+		end
 		if self:_HasActiveSource() then self:_Activate()
 		else self:_Deactivate() end
 		return true
@@ -207,7 +219,7 @@ return function(API)
 		self:_RestoreAllOccluders(); self.RaycastParams = nil; self.OverlapParams = nil
 	end
 	function CameraAssist:Shutdown()
-		table.clear(self.Sources); self:_Deactivate()
+		table.clear(self.Sources); table.clear(self.HighlightSources); self:_Deactivate()
 	end
 	Runtime:OnShutdown(function() CameraAssist:Shutdown() end)
 
