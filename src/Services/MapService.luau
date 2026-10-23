@@ -1,7 +1,7 @@
 -- [[ mapservice ]]
 
 return function(API)
-	local Services = API.Roblox; local Runtime = API.Runtime; local CoinService = API.Services.Coin; local Util = API.Util
+	local Config = API.Config; local Services = API.Roblox; local Runtime = API.Runtime; local CoinService = API.Services.Coin; local Util = API.Util
 
 	-- Cache
 	local MapService = {
