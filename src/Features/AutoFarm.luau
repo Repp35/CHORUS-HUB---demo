@@ -4,8 +4,9 @@ return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
 	local Invisicam = API.Features.Invisicam
-	local TOUCH_DISTANCE = 7.5
-	local TOUCH_RETRY_DELAY = 0.2
+	local TOUCH_DISTANCE = 3.5
+	local TOUCH_RETRY_DELAY = 0.75
+	local PASS_THROUGH_DISTANCE = 1.5
 
 	-- State
 	local Farm = {
@@ -16,7 +17,6 @@ return function(API)
 		Tween = nil,
 		ProximityConnection = nil,
 		LastProximitySweepAt = 0,
-		RouteRevision = 0,
 		BagFull = false,
 		ResetWhenBagFull = false,
 		BagResetTriggered = false,
@@ -128,7 +128,7 @@ return function(API)
 		if not coinPosition or (root.Position - coinPosition).Magnitude > TOUCH_DISTANCE then return false end
 		local now = os.clock()
 		if (self.RetryAfter[coin] or 0) <= now then
-			self:TouchOnce(root, coin); self.RouteRevision += 1
+			self:TouchOnce(root, coin)
 			self.RetryAfter[coin] = now + TOUCH_RETRY_DELAY
 		end
 		return true
@@ -241,14 +241,16 @@ return function(API)
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
 			coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin] or coin.Position
 			local speed = math.max(tonumber(self.Speed) or 23, 1); local target = coinPosition - Vector3.new(0, 2.5, 0)
-			local distanceToTarget = (target - root.Position).Magnitude; local duration = math.max(distanceToTarget / speed, 1 / 60)
+			local approach = target - root.Position; local approachDistance = approach.Magnitude
+			if approachDistance > 0.001 then target += approach.Unit * PASS_THROUGH_DISTANCE end
+			local duration = math.max((target - root.Position).Magnitude / speed, 1 / 60)
 			local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
 			local tween = Services.TweenService:Create(
 				root,
 				TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 				{ CFrame = targetCFrame }
 			)
-			self.Tween = tween; tween:Play(); local deadline = os.clock() + duration + 0.5; local routeRevision = self.RouteRevision
+			self.Tween = tween; tween:Play(); local deadline = os.clock() + duration + 0.5
 			while
 				self.Enabled
 				and self.Farming
@@ -256,9 +258,6 @@ return function(API)
 				and Player:GetAttribute("Alive") == true
 				and humanoid.Health > 0
 				and root.Parent
-				and coin.Parent
-				and coin:IsDescendantOf(container)
-				and CoinService:IsCollectable(coin, container)
 				and os.clock() < deadline
 			do
 				local inMatch, activeCharacter, activeHumanoid, activeRoot, activeContainer = MatchService:GetContext()
@@ -271,7 +270,7 @@ return function(API)
 				then
 					break
 				end
-				if self.RouteRevision ~= routeRevision or self:TouchCoinInRange(root, coin, container, coinPosition) then break end
+				self:TouchCoinInRange(root, coin, container, coinPosition)
 				if tween.PlaybackState ~= Enum.PlaybackState.Playing then break end
 				Services.RunService.Heartbeat:Wait()
 			end

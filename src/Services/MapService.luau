@@ -82,6 +82,11 @@ return function(API)
 			if not coin.Parent or not coin:IsDescendantOf(container) then
 				self.CachedCoinPositions[coin] = nil
 			elseif retryAt <= now and CoinService:IsCollectable(coin, container) then
+				local currentPosition = coin.Position
+				if (currentPosition - coinPosition).Magnitude > 0.1 then
+					coinPosition = currentPosition
+					self.CachedCoinPositions[coin] = currentPosition
+				end
 				local distance = (position - coinPosition).Magnitude
 				if distance <= Config.CoinSearchRadius and distance < nearestDistance then
 					nearest, nearestDistance, nearestPosition = coin, distance, coinPosition
