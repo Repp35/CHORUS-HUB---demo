@@ -323,13 +323,22 @@ return function(API)
 	end
 
 	-- GunMarkers
-	local function addGunPart(gunParts, instance)
+	local function addGunPart(gunParts, instance, heldRoots)
+		local part
 		if instance:IsA("BasePart") and instance:IsDescendantOf(Services.Workspace) then
-			gunParts[instance] = true
+			part = instance
 		elseif instance:IsA("Model") and instance:IsDescendantOf(Services.Workspace) then
-			local part = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
-			if part then gunParts[part] = true end
+			part = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
+		elseif instance:IsDescendantOf(Workspace) then
+			part = instance:FindFirstChildWhichIsA("BasePart", true)
 		end
+		if not part or not part:IsDescendantOf(Workspace) then return end
+		local ancestor = part
+		while ancestor and ancestor ~= Workspace do
+			if ancestor:IsA("Tool") or heldRoots[ancestor] then return end
+			ancestor = ancestor.Parent
+		end
+		gunParts[part] = true
 	end
 	local function isGunStationary(part)
 		if not part or not part.Parent or not part:IsDescendantOf(Workspace) then return false end
@@ -353,8 +362,14 @@ return function(API)
 		local gunParts = {}
 		local visibleGunParts = {}
 		if self.Filters.Gun then
+			local heldRoots = {}
+			for _, target in ipairs(Services.Players:GetPlayers()) do
+				if target.Character then heldRoots[target.Character] = true end
+				local backpack = target:FindFirstChildOfClass("Backpack")
+				if backpack then heldRoots[backpack] = true end
+			end
 			for _, gun in ipairs(Services.CollectionService:GetTagged("GunDrop")) do
-				addGunPart(gunParts, gun)
+				addGunPart(gunParts, gun, heldRoots)
 			end
 		end
 		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
