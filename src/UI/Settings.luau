@@ -225,7 +225,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Nome de usuário",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value) ESP.ShowUsername = value == true end,
 				},

@@ -8,7 +8,7 @@ return function(API)
 	local ESP = {
 		Enabled = false,
 		ShowIdentity = true,
-		ShowUsername = false,
+		ShowUsername = true,
 		ShowSelf = true,
 		NameTextSizeNear = 12,
 		NameTextSizeFar = 17,
@@ -46,7 +46,7 @@ return function(API)
 			Sheriff = Color3.fromRGB(70, 155, 255),
 			Innocent = Color3.fromRGB(70, 220, 120),
 			Player = Color3.fromRGB(235, 235, 235),
-			Self = Color3.fromRGB(220, 220, 255),
+			Self = Color3.fromRGB(70, 220, 120),
 			CandyCoin = Color3.fromRGB(255, 185, 70),
 			Gun = Color3.fromRGB(70, 225, 255),
 		},
