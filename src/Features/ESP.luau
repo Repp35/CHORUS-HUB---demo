@@ -18,6 +18,8 @@ return function(API)
 		FillTransparency = 0.82,
 		OutlineTransparency = 0,
 		Thread = nil,
+		RenderConnection = nil,
+		RepairScheduled = false,
 		RoleRemote = nil,
 		RoleChangedConnection = nil,
 		RoleData = nil,
@@ -345,6 +347,146 @@ return function(API)
 		else self:ClearMap(self.CoinMarkers) end
 		self:RefreshGuns()
 	end
+	function ESP:ScheduleRepair()
+		if self.RepairScheduled or not self.Enabled or Runtime.ShuttingDown then return end
+		self.RepairScheduled = true
+		task.defer(function()
+			if self.Enabled and not Runtime.ShuttingDown then
+				local ok, errorMessage = xpcall(function() self:Refresh() end, Util.FormatError)
+				if not ok then self:ReportError("reparação de marcadores", errorMessage) end
+			end
+			self.RepairScheduled = false
+		end)
+	end
+	local function reapplyLabel(label)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextTransparency = 0
+		label.TextStrokeColor3 = Color3.new(0, 0, 0)
+		label.TextStrokeTransparency = 0
+	end
+	local function markerNeedsRepair(marker, includeUsername)
+		if not marker or not marker.Gui or not marker.Highlight then return true end
+		if not marker.Gui.Parent or not marker.Highlight.Parent then return true end
+		if not marker.IdentityLabel or marker.IdentityLabel.Parent ~= marker.Gui then return true end
+		return includeUsername and (not marker.UsernameLabel or marker.UsernameLabel.Parent ~= marker.Gui) or false
+	end
+	function ESP:ReapplyMarkers()
+		if not self.Enabled or Runtime.ShuttingDown then return end
+		local needsRepair = false
+		local localCharacter = Player.Character
+		local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
+		for target, marker in pairs(self.PlayerMarkers) do
+			if
+				markerNeedsRepair(marker, true)
+				or not marker.Character
+				or not marker.Character.Parent
+				or not marker.Root
+				or not marker.Root.Parent
+				or not marker.NameAdornee
+				or not marker.NameAdornee.Parent
+			then
+				needsRepair = true
+				continue
+			end
+			local color = self.Colors[marker.Category]
+			if not color then
+				needsRepair = true
+				continue
+			end
+			local highlight = marker.Highlight
+			highlight.Adornee = marker.Character
+			highlight.Parent = marker.Character
+			highlight.Enabled = true
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillColor = color
+			highlight.FillTransparency = self.FillTransparency
+			highlight.OutlineColor = color
+			highlight.OutlineTransparency = self.OutlineTransparency
+			local gui = marker.Gui
+			gui.Adornee = marker.NameAdornee
+			gui.Parent = marker.Root
+			gui.AlwaysOnTop = true
+			gui.LightInfluence = 0
+			gui.MaxDistance = 0
+			gui.StudsOffset = Vector3.new(0, marker.NameAdornee.Size.Y * 0.5 + 0.55, 0)
+			self:UpdatePlayerLabels(
+				marker,
+				marker.UsernameLabel.Text,
+				marker.IdentityLabel.Text,
+				color,
+				getDistance(localRoot, marker.Root, self.NameScaleFarDistance)
+			)
+			reapplyLabel(marker.IdentityLabel)
+			reapplyLabel(marker.UsernameLabel)
+		end
+		for part, marker in pairs(self.CoinMarkers) do
+			if markerNeedsRepair(marker, false) or not part.Parent then
+				needsRepair = true
+				continue
+			end
+			local adornee = getCoinVisualAdornee(part)
+			local labelAdornee = getObjectLabelAdornee(adornee, part)
+			local highlight = marker.Highlight
+			highlight.Adornee = adornee
+			highlight.Parent = adornee
+			highlight.Enabled = true
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillColor = self.Colors.CandyCoin
+			highlight.FillTransparency = self.FillTransparency
+			highlight.OutlineColor = self.Colors.CandyCoin
+			highlight.OutlineTransparency = self.OutlineTransparency
+			local gui = marker.Gui
+			gui.Adornee = labelAdornee
+			gui.Parent = labelAdornee
+			gui.AlwaysOnTop = true
+			gui.LightInfluence = 0
+			gui.MaxDistance = 0
+			gui.StudsOffset = Vector3.new(0, labelAdornee.Size.Y * 0.5 + 0.45, 0)
+			marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.CandyCoin == true
+			marker.IdentityLabel.TextColor3 = getLabelColor(self.Colors.CandyCoin)
+			marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+			marker.IdentityLabel.TextStrokeTransparency = 0
+			marker.IdentityLabel.TextTransparency = 0
+			marker.IdentityLabel.Size = UDim2.fromScale(1, 1)
+			gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8)
+			gui.Enabled = marker.IdentityLabel.Visible
+			reapplyLabel(marker.IdentityLabel)
+		end
+		for part, marker in pairs(self.GunMarkers) do
+			if markerNeedsRepair(marker, false) or not part.Parent then
+				needsRepair = true
+				continue
+			end
+			local color = self.Colors.Gun
+			local highlight = marker.Highlight
+			highlight.Adornee = part
+			highlight.Parent = part
+			highlight.Enabled = true
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.FillColor = color
+			highlight.FillTransparency = self.FillTransparency
+			highlight.OutlineColor = color
+			highlight.OutlineTransparency = self.OutlineTransparency
+			local gui = marker.Gui
+			gui.Adornee = part
+			gui.Parent = part
+			gui.AlwaysOnTop = true
+			gui.LightInfluence = 0
+			gui.MaxDistance = 0
+			gui.StudsOffset = Vector3.new(0, part.Size.Y * 0.5 + 0.45, 0)
+			marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.Gun == true
+			marker.IdentityLabel.TextColor3 = getLabelColor(color)
+			marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+			marker.IdentityLabel.TextStrokeTransparency = 0
+			marker.IdentityLabel.TextTransparency = 0
+			marker.IdentityLabel.Size = UDim2.fromScale(1, 1)
+			gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8)
+			gui.Enabled = marker.IdentityLabel.Visible
+			reapplyLabel(marker.IdentityLabel)
+		end
+		if needsRepair then self:ScheduleRepair() end
+	end
 	function ESP:ReportError(context, errorMessage)
 		local now = os.clock()
 		if now - self.LastErrorAt < 5 then return end
@@ -355,6 +497,10 @@ return function(API)
 	function ESP:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
 		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
+		self.RenderConnection = Runtime:Track(Services.RunService.RenderStepped:Connect(function()
+			local ok, errorMessage = xpcall(function() self:ReapplyMarkers() end, Util.FormatError)
+			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
+		end))
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -369,6 +515,10 @@ return function(API)
 	end
 	function ESP:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
+		if self.RenderConnection then
+			pcall(function() self.RenderConnection:Disconnect() end)
+			self.RenderConnection = nil
+		end
 		if thread then pcall(task.cancel, thread) end
 		if self.RoleChangedConnection then
 			pcall(function() self.RoleChangedConnection:Disconnect() end)
