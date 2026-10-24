@@ -9,6 +9,7 @@ return function()
 		UserInputService = game:GetService("UserInputService"),
 		Workspace = game:GetService("Workspace"),
 		TweenService = game:GetService("TweenService"),
+		PathfindingService = game:GetService("PathfindingService"),
 		ReplicatedStorage = game:GetService("ReplicatedStorage"),
 		CollectionService = game:GetService("CollectionService"),
 		CoreGui = game:GetService("CoreGui"),

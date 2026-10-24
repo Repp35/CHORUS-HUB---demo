@@ -15,6 +15,7 @@ return function()
 			{ Name = "Noclip", Path = "src/Features/Noclip" },
 			{ Name = "Invisicam", Path = "src/Features/Invisicam" },
 			{ Name = "AutoFarm", Path = "src/Features/AutoFarm" },
+			{ Name = "AutoGunPickup", Path = "src/Features/AutoGunPickup" },
 			{ Name = "InfiniteJump", Path = "src/Features/InfiniteJump" },
 			{ Name = "Fly", Path = "src/Features/Fly" },
 			{ Name = "AntiAFK", Path = "src/Features/AntiAFK" },

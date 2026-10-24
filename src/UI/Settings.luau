@@ -4,12 +4,42 @@ return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
 	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
-	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
+	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam; local AutoGunPickup = API.Features.AutoGunPickup
 
 	-- ControlGroups
 	local Settings = {}
 	local ControlGroups = {
-		Combat = {},
+		Combat = {
+			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
+			{
+				Key = "AutoGunPickup",
+				SectionKey = "GunPickupSection",
+				Flag = "AutoGunPickup",
+				Type = "Toggle",
+				Config = {
+					Name = "Auto Pick Up Gun (1 frame)",
+					Default = false,
+					Save = true,
+					Callback = function(value)
+						if value then AutoGunPickup:Start()
+						else AutoGunPickup:Stop() end
+					end,
+				},
+			},
+			{
+				Key = "GunPickupSafety",
+				SectionKey = "GunPickupSection",
+				ParentFlag = "AutoGunPickup",
+				Flag = "GunPickupSafety",
+				Type = "Toggle",
+				Config = {
+					Name = "Segurança contra o Murderer",
+					Default = false,
+					Save = true,
+					Callback = function(value) AutoGunPickup:SetSafetyEnabled(value) end,
+				},
+			},
+		},
 		["Auto Farm"] = {
 			{ Key = "CoinCollectionSection", Type = "Section", Config = { Name = "Coleta de moedas" } },
 			{
