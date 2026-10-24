@@ -8,7 +8,7 @@ Hub modular para uso no cliente de Murder Mystery 2. A interface e os recursos s
 | Recurso | Requisitos |
 | --- | --- |
 | ESP de jogadores | Só precisa estar ligado e o personagem estar no Workspace. No lobby, mostra jogador; durante rodada, mostra papel conhecido apenas enquanto o jogador estiver vivo. |
-| ESP de moedas e arma | ESP ligado e filtro correspondente ligado; moedas exigem um mapa ativo com `CoinContainer`, armas são descobertas no Workspace. |
+| ESP de moedas e arma | ESP ligado e filtro correspondente ligado; moedas exigem um mapa ativo com `CoinContainer`; armas usam o tag `GunDrop` e só aparecem depois de permanecerem paradas. |
 | Auto Farm | Toggle ligado, rodada ativa (`MapID` e `CoinContainer`), personagem local vivo e com `HumanoidRootPart`. Pode coletar moedas com qualquer papel. |
 | Resetar com bolsa cheia | Auto Farm ligado, bolsa cheia, personagem vivo e papel registrado como Inocente. |
 | Auto Pick Up Gun | Toggle ligado, rodada ativa, local vivo, papel Inocente registrado, arma caída no mapa e sem arma no inventário. A checagem de perigo depende do toggle de segurança. |
@@ -22,9 +22,9 @@ Os papéis são obtidos de `GetPlayerData`; atributos de vida e estado do person
 
 ## Padrões
 
-Sem uma configuração salva, começam ligados o ESP (com nome, você e filtros de Assassino/Xerife/Inocentes) e o Auto Pick Up Gun. A segurança contra o Murderer começa desligada, conforme solicitado.
+Sem uma configuração salva, começam ligados o ESP (com nome, você, filtros de Assassino/Xerife/Inocentes e arma caída parada), Auto Pick Up Gun, Anti AFK, Anti Fling e Invisicam. A segurança contra o Murderer começa desligada, conforme solicitado.
 
-Começam desligados Auto Farm, reset por bolsa cheia, Speed dinâmico, Anti AFK, Anti Fling, Invisicam do jogador, Noclip, Infinite Jump, Fly, e os filtros de moedas/armas. Uma configuração salva pelo usuário prevalece sobre estes padrões.
+Começam desligados Auto Farm, reset por bolsa cheia, Speed dinâmico, Noclip, Infinite Jump, Fly, e o filtro de moedas. Uma configuração salva pelo usuário prevalece sobre estes padrões.
 
 ## Estrutura
 

@@ -254,7 +254,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Anti AFK",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value)
 						if value then AntiAFK:Start()
@@ -269,7 +269,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Anti Fling",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value)
 						if value then AntiFling:Start()
@@ -285,7 +285,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Invisicam",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value) Invisicam:SetSource("Player", value == true) end,
 				},
@@ -438,7 +438,7 @@ return function(API)
 		{ Name = "Xerife + Hero", Filter = "Sheriff", Flag = "ESPSheriff", Default = true },
 		{ Name = "Inocentes", Filter = "Innocent", Flag = "ESPInnocent", Default = true },
 		{ Name = "Candy / Coin", Filter = "CandyCoin", Flag = "ESPCandyCoin", Default = false },
-		{ Name = "Gun", Filter = "Gun", Flag = "ESPGun", Default = false },
+		{ Name = "Arma caída parada", Filter = "Gun", Flag = "ESPGun", Default = true },
 	}
 
 	for _, option in ipairs(ESPOptions) do

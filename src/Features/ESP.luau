@@ -33,6 +33,7 @@ return function(API)
 		LastKnownRoles = setmetatable({}, { __mode = "k" }),
 		CoinMarkers = {},
 		GunMarkers = {},
+		GunMotion = setmetatable({}, { __mode = "k" }),
 		Filters = {
 			Murderer = true,
 			Sheriff = true,
@@ -126,7 +127,7 @@ return function(API)
 		for _, marker in pairs(self.PlayerMarkers) do
 			destroyMarker(marker)
 		end
-		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers)
+		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers); table.clear(self.GunMotion)
 		local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
 		if oldIndicators then destroySafely(oldIndicators) end
 	end
@@ -330,21 +331,36 @@ return function(API)
 			if part then gunParts[part] = true end
 		end
 	end
+	local function isGunStationary(part)
+		if not part or not part.Parent or not part:IsDescendantOf(Workspace) then return false end
+		local now = os.clock()
+		local position = part.Position
+		local ok, velocity = pcall(function() return part.AssemblyLinearVelocity end)
+		if not ok or not Util.IsFiniteVector3(position) or not Util.IsFiniteVector3(velocity) then return false end
+		local motion = ESP.GunMotion[part]
+		if not motion then
+			ESP.GunMotion[part] = { Position = position, At = now, StillSince = now }
+			return false
+		end
+		local elapsed = math.max(now - motion.At, 1 / 240)
+		local measuredSpeed = (position - motion.Position).Magnitude / elapsed
+		if velocity.Magnitude > 1.5 or measuredSpeed > 1.5 then motion.StillSince = now end
+		motion.Position = position
+		motion.At = now
+		return now - motion.StillSince >= 0.2
+	end
 	function ESP:RefreshGuns()
 		local gunParts = {}
+		local visibleGunParts = {}
 		if self.Filters.Gun then
 			for _, gun in ipairs(Services.CollectionService:GetTagged("GunDrop")) do
 				addGunPart(gunParts, gun)
 			end
-			for _, target in ipairs(Services.Players:GetPlayers()) do
-				if target ~= Player then
-					local character = target.Character; local tool = character and character:FindFirstChild("Gun"); local handle = tool and tool:FindFirstChild("Handle")
-					if handle and handle:IsA("BasePart") then addGunPart(gunParts, handle) end
-				end
-			end
 		end
 		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for part in pairs(gunParts) do
+			if not isGunStationary(part) then continue end
+			visibleGunParts[part] = true
 			local marker = self.GunMarkers[part]
 			if not marker or not marker.Gui.Parent or not marker.Highlight.Parent then
 				if marker then destroyMarker(marker) end
@@ -364,7 +380,7 @@ return function(API)
 			marker.Highlight.OutlineTransparency = self.OutlineTransparency
 		end
 		for part, marker in pairs(self.GunMarkers) do
-			if not gunParts[part] then destroyMarker(marker); self.GunMarkers[part] = nil end
+			if not visibleGunParts[part] then destroyMarker(marker); self.GunMarkers[part] = nil end
 		end
 	end
 
@@ -377,7 +393,6 @@ return function(API)
 		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
-		self:RefreshGuns()
 	end
 	function ESP:ScheduleRepair()
 		if self.RepairScheduled or not self.Enabled or Runtime.ShuttingDown then return end
@@ -566,6 +581,7 @@ return function(API)
 			local ok, errorMessage = xpcall(function()
 				self:DisableMarkersForFrame()
 				self:RefreshPlayers(self.RoleData, self.InRound)
+				self:RefreshGuns()
 				self:ReapplyMarkers()
 			end, Util.FormatError)
 			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
