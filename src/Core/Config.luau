@@ -8,7 +8,7 @@ return function()
 		ConfigFolder = "ChorusMM2Delta",
 		SaveConfig = true,
 		HidePremium = true,
-		IntroEnabled = false,
+		IntroEnabled = true,
 		OrionSource = "https://raw.githubusercontent.com/Qanuir/orion-ui/refs/heads/main/source.lua",
 		MapRefreshInterval = 1,
 	}
