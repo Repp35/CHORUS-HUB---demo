@@ -201,6 +201,24 @@ return function(API)
 		)
 		source = replaceOnce(
 			source,
+			"local Toggle = {Value = ToggleConfig.Default, Save = ToggleConfig.Save}",
+			"local Toggle = {Value = ToggleConfig.Default, Save = ToggleConfig.Save, Initializing = true}",
+			"estado inicial dos toggles"
+		)
+		source = replaceOnce(
+			source,
+			"\t\t\t\t\tToggleConfig.Callback(Toggle.Value)",
+			"\t\t\t\t\tif not Toggle.Initializing then ToggleConfig.Callback(Toggle.Value) end",
+			"não executar callback antes de carregar as configurações"
+		)
+		source = replaceOnce(
+			source,
+			"\t\t\t\tToggle:Set(Toggle.Value)",
+			lines("\t\t\t\tToggle:Set(Toggle.Value)", "\t\t\t\tToggle.Initializing = false"),
+			"finalizar a criação do toggle"
+		)
+		source = replaceOnce(
+			source,
 			lines(
 				"local function SaveCfg(Name)",
 				"\tlocal Data = {}",

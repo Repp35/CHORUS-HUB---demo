@@ -394,6 +394,11 @@ return function(API)
 		local localCharacter = Player.Character
 		local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for target, marker in pairs(self.PlayerMarkers) do
+			if not marker.Category or self.Filters[marker.Category] ~= true then
+				destroyMarker(marker)
+				self.PlayerMarkers[target] = nil
+				continue
+			end
 			if
 				markerNeedsRepair(marker, true)
 				or not marker.Character
