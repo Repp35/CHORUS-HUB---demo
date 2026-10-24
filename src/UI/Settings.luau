@@ -9,6 +9,7 @@ return function(API)
 	-- ControlGroups
 	local Settings = {}
 	local ControlGroups = {
+		Combat = {},
 		["Auto Farm"] = {
 			{
 				Key = "AutoFarm",
@@ -290,7 +291,7 @@ return function(API)
 	-- Initialization
 	function Settings:Init()
 		local registries = {}
-		for _, tabName in ipairs({ "Auto Farm", "Visuals", "Player", "Settings" }) do
+		for _, tabName in ipairs({ "Auto Farm", "Combat", "Visuals", "Player", "Settings" }) do
 			local registry = ControlRegistry.new(Tabs[tabName], function() return UI:GetItemContainer(tabName) end)
 			registry:Build(ControlGroups[tabName]); registries[tabName] = registry
 		end

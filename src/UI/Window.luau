@@ -223,6 +223,7 @@ return function(API)
 	UI:FindWindow()
 	local Tabs = {
 		["Auto Farm"] = UI:MakeTab("Auto Farm"),
+		Combat = UI:MakeTab("Combat"),
 		Visuals = UI:MakeTab("Visuals"),
 		Player = UI:MakeTab("Player"),
 		Settings = UI:MakeTab("Settings"),
