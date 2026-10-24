@@ -8,25 +8,25 @@ return function()
 		Groups = {
 			MM2 = {
 				Services = {
-					{ Name = "Coin", Path = "src/MM2/Services/CoinService" },
-					{ Name = "Map", Path = "src/MM2/Services/MapService" },
-					{ Name = "Match", Path = "src/MM2/Services/MatchService" },
+					{ Name = "Coin", Path = "src/Services/MM2/CoinService" },
+					{ Name = "Map", Path = "src/Services/MM2/MapService" },
+					{ Name = "Match", Path = "src/Services/MM2/MatchService" },
 				},
 				Features = {
-					{ Name = "ESP", Path = "src/MM2/Features/ESP" },
-					{ Name = "AutoFarm", Path = "src/MM2/Features/AutoFarm" },
-					{ Name = "AutoGunPickup", Path = "src/MM2/Features/AutoGunPickup" },
+					{ Name = "ESP", Path = "src/Features/MM2/ESP" },
+					{ Name = "AutoFarm", Path = "src/Features/MM2/AutoFarm" },
+					{ Name = "AutoGunPickup", Path = "src/Features/MM2/AutoGunPickup" },
 				},
 			},
 			Universal = {
 				Features = {
-					{ Name = "DynamicSpeed", Path = "src/Universal/Features/DynamicSpeed" },
-					{ Name = "Noclip", Path = "src/Universal/Features/Noclip" },
-					{ Name = "Invisicam", Path = "src/Universal/Features/Invisicam" },
-					{ Name = "InfiniteJump", Path = "src/Universal/Features/InfiniteJump" },
-					{ Name = "Fly", Path = "src/Universal/Features/Fly" },
-					{ Name = "AntiAFK", Path = "src/Universal/Features/AntiAFK" },
-					{ Name = "AntiFling", Path = "src/Universal/Features/AntiFling" },
+					{ Name = "DynamicSpeed", Path = "src/Features/Universal/DynamicSpeed" },
+					{ Name = "Noclip", Path = "src/Features/Universal/Noclip" },
+					{ Name = "Invisicam", Path = "src/Features/Universal/Invisicam" },
+					{ Name = "InfiniteJump", Path = "src/Features/Universal/InfiniteJump" },
+					{ Name = "Fly", Path = "src/Features/Universal/Fly" },
+					{ Name = "AntiAFK", Path = "src/Features/Universal/AntiAFK" },
+					{ Name = "AntiFling", Path = "src/Features/Universal/AntiFling" },
 				},
 			},
 		},
