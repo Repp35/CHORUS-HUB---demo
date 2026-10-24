@@ -36,6 +36,7 @@ return function(API)
 			Murderer = true,
 			Sheriff = true,
 			Innocent = true,
+			Player = true,
 			Self = true,
 			CandyCoin = false,
 			Gun = false,
@@ -44,6 +45,7 @@ return function(API)
 			Murderer = Color3.fromRGB(255, 65, 65),
 			Sheriff = Color3.fromRGB(70, 155, 255),
 			Innocent = Color3.fromRGB(70, 220, 120),
+			Player = Color3.fromRGB(235, 235, 235),
 			Self = Color3.fromRGB(220, 220, 255),
 			CandyCoin = Color3.fromRGB(255, 185, 70),
 			Gun = Color3.fromRGB(70, 225, 255),
@@ -139,13 +141,16 @@ return function(API)
 			for playerName, profile in pairs(changes) do
 				if type(playerName) == "string" and type(profile) == "table" then
 					roleData[playerName] = profile
-					if type(profile.Role) == "string" then
-						local target = Services.Players:FindFirstChild(playerName)
+					local target = Services.Players:FindFirstChild(playerName)
+					if profile.Dead == true or profile.Killed == true then
+						if target then self.LastKnownRoles[target] = nil end
+					elseif type(profile.Role) == "string" then
 						if target then self.LastKnownRoles[target] = profile.Role end
 					end
 				end
 			end
 			self.RoleData = roleData; self.RoleDataAt = os.clock()
+			self:ScheduleRepair()
 		end)
 	end
 	function ESP:GetRoleData()
@@ -217,7 +222,7 @@ return function(API)
 		end
 		return true
 	end
-	function ESP:RefreshPlayers(roleData)
+	function ESP:RefreshPlayers(roleData, inMatch)
 		local keepWorld = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for _, target in ipairs(Services.Players:GetPlayers()) do
 			local isSelf = target == Player
@@ -225,18 +230,20 @@ return function(API)
 			local profile = roleData and roleData[target.Name]; local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local root = character and character:FindFirstChild("HumanoidRootPart"); local aliveAttribute = target:GetAttribute("Alive")
 			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
-			if aliveAttribute == false or profileSaysDead or humanoid and humanoid.Health <= 0 then self.LastKnownRoles[target] = nil; continue end
-			local role = type(profile) == "table" and profile.Role or self.LastKnownRoles[target]
-			if type(profile) == "table" and type(profile.Role) == "string" then self.LastKnownRoles[target] = profile.Role end
 			local worldAvailable = character
 				and character:IsDescendantOf(Workspace)
 				and humanoid
 				and humanoid.Health > 0
 				and root
 				and root:IsA("BasePart")
-			local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil
-			local category = isSelf and "Self" or getRoleCategory(role)
-			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or getRoleLabel(role)
+			if not worldAvailable then self.LastKnownRoles[target] = nil; continue end
+			local roleActive = inMatch == true and aliveAttribute == true and not profileSaysDead
+			if profileSaysDead then self.LastKnownRoles[target] = nil end
+			local role = roleActive and (type(profile) == "table" and profile.Role or self.LastKnownRoles[target]) or nil
+			if roleActive and type(profile) == "table" and type(profile.Role) == "string" then self.LastKnownRoles[target] = profile.Role end
+			local roleCategory = getRoleCategory(role); local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil
+			local category = isSelf and "Self" or roleCategory or "Player"
+			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or roleLabel or (profileSaysDead and "Morto" or inMatch and "Jogador" or "Lobby")
 			if category and identity and self.Filters[category] == true and worldAvailable then
 				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
 				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
@@ -252,6 +259,7 @@ return function(API)
 					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
 				marker.Category = category
+				marker.Role = roleCategory and role or nil
 				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
 				marker.Highlight.FillColor = color
 				marker.Highlight.FillTransparency = self.FillTransparency
@@ -358,8 +366,9 @@ return function(API)
 	-- Refresh
 	function ESP:Refresh()
 		local inMatch, _, container = MatchService:GetRoundContext()
-		if not inMatch then self:ClearAll(); self.RoleData = nil; self.RoleDataAt = 0; return end
-		local needsRoleData = self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent; self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil)
+		if not inMatch then self.RoleData = nil; self.RoleDataAt = 0; table.clear(self.LastKnownRoles) end
+		local needsRoleData = inMatch and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
+		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
 		self:RefreshGuns()
@@ -397,6 +406,23 @@ return function(API)
 			if not marker.Category or self.Filters[marker.Category] ~= true then
 				destroyMarker(marker)
 				self.PlayerMarkers[target] = nil
+				continue
+			end
+			local character = target.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local profile = self.RoleData and self.RoleData[target.Name]
+			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
+			if
+				not character
+				or not character:IsDescendantOf(Workspace)
+				or not humanoid
+				or humanoid.Health <= 0
+				or (marker.Role and (target:GetAttribute("Alive") ~= true or profileSaysDead))
+			then
+				if profileSaysDead then self.LastKnownRoles[target] = nil end
+				destroyMarker(marker)
+				self.PlayerMarkers[target] = nil
+				self:ScheduleRepair()
 				continue
 			end
 			if
@@ -519,6 +545,8 @@ return function(API)
 	function ESP:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
 		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
+		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
+		if not refreshed then self:ReportError("atualização inicial", refreshError) end
 		self.RenderConnection = Runtime:Track(Services.RunService.RenderStepped:Connect(function()
 			local ok, errorMessage = xpcall(function() self:ReapplyMarkers() end, Util.FormatError)
 			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
