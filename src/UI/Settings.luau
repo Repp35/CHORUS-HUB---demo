@@ -11,8 +11,10 @@ return function(API)
 	local ControlGroups = {
 		Combat = {},
 		["Auto Farm"] = {
+			{ Key = "CoinCollectionSection", Type = "Section", Config = { Name = "Coleta de moedas" } },
 			{
 				Key = "AutoFarm",
+				SectionKey = "CoinCollectionSection",
 				Flag = "AutoFarm",
 				Type = "Toggle",
 				Config = {
@@ -27,6 +29,7 @@ return function(API)
 			},
 			{
 				Key = "ResetWhenBagFull",
+				SectionKey = "CoinCollectionSection",
 				Flag = "ResetWhenBagFull",
 				ParentFlag = "AutoFarm",
 				Type = "Toggle",
@@ -39,6 +42,7 @@ return function(API)
 			},
 			{
 				Key = "FarmSpeed",
+				SectionKey = "CoinCollectionSection",
 				Flag = "FarmSpeed",
 				ParentFlag = "AutoFarm",
 				Type = "Slider",
@@ -55,8 +59,10 @@ return function(API)
 			},
 		},
 		Visuals = {
+			{ Key = "ESPSection", Type = "Section", Config = { Name = "ESP de jogadores e objetos" } },
 			{
 				Key = "ESPEnabled",
+				SectionKey = "ESPSection",
 				Flag = "ESPEnabled",
 				Type = "Toggle",
 				Config = {
@@ -71,6 +77,7 @@ return function(API)
 			},
 			{
 				Key = "ESPShowIdentity",
+				SectionKey = "ESPSection",
 				Flag = "ESPShowIdentity",
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
@@ -83,6 +90,7 @@ return function(API)
 			},
 			{
 				Key = "ESPShowUsername",
+				SectionKey = "ESPSection",
 				Flag = "ESPShowUsername",
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
@@ -95,8 +103,10 @@ return function(API)
 			},
 		},
 		Player = {
+			{ Key = "ProtectionSection", Type = "Section", Config = { Name = "Proteção" } },
 			{
 				Key = "AntiAFK",
+				SectionKey = "ProtectionSection",
 				Flag = "AntiAFK",
 				Type = "Toggle",
 				Config = {
@@ -111,6 +121,7 @@ return function(API)
 			},
 			{
 				Key = "AntiFling",
+				SectionKey = "ProtectionSection",
 				Flag = "AntiFling",
 				Type = "Toggle",
 				Config = {
@@ -123,8 +134,10 @@ return function(API)
 					end,
 				},
 			},
+			{ Key = "MovementSection", Type = "Section", Config = { Name = "Movimento" } },
 			{
 				Key = "PlayerInvisicam",
+				SectionKey = "MovementSection",
 				Flag = "PlayerInvisicam",
 				Type = "Toggle",
 				Config = {
@@ -136,6 +149,7 @@ return function(API)
 			},
 			{
 				Key = "Noclip",
+				SectionKey = "MovementSection",
 				Flag = "Noclip",
 				Type = "Toggle",
 				Config = {
@@ -150,6 +164,7 @@ return function(API)
 			},
 			{
 				Key = "InfiniteJump",
+				SectionKey = "MovementSection",
 				Flag = "InfiniteJump",
 				Type = "Toggle",
 				Config = {
@@ -164,6 +179,7 @@ return function(API)
 			},
 			{
 				Key = "Fly",
+				SectionKey = "MovementSection",
 				Flag = "Fly",
 				Type = "Toggle",
 				Config = {
@@ -178,6 +194,7 @@ return function(API)
 			},
 			{
 				Key = "FlySpeed",
+				SectionKey = "MovementSection",
 				Flag = "FlySpeed",
 				ParentFlag = "Fly",
 				Type = "Slider",
@@ -192,8 +209,10 @@ return function(API)
 					Callback = function(value) Fly:SetSpeed(value) end,
 				},
 			},
+			{ Key = "ActionsSection", Type = "Section", Config = { Name = "Ações" } },
 			{
 				Key = "ResetPlayerKill",
+				SectionKey = "ActionsSection",
 				Type = "Button",
 				Config = {
 					Name = "Reset Player (Kill)",
@@ -206,8 +225,10 @@ return function(API)
 			},
 		},
 		Settings = {
+			{ Key = "ConfigurationSection", Type = "Section", Config = { Name = "Configuração" } },
 			{
 				Key = "ResetSavedConfig",
+				SectionKey = "ConfigurationSection",
 				Type = "Button",
 				Config = {
 					Name = "Resetar configurações salvas",
@@ -230,6 +251,7 @@ return function(API)
 		local currentOption = option
 		table.insert(ControlGroups.Visuals, {
 			Key = currentOption.Flag,
+			SectionKey = "ESPSection",
 			Flag = currentOption.Flag,
 			ParentFlag = "ESPEnabled",
 			Type = "Toggle",

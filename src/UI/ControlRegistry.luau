@@ -10,6 +10,7 @@ return function(API)
 			Tab = tab,
 			GetContainer = getContainer,
 			Items = {},
+			ByKey = {},
 			ByFlag = {},
 		}, UIControlRegistry)
 
@@ -25,19 +26,37 @@ return function(API)
 
 	-- ControlCreation
 	function UIControlRegistry:CreateControl(definition, order)
-		local container = self:GetItemContainer(); local existing = {}
+		local isSection = definition.Type == "Section"
+		local target = self.Tab
+		local container
+		if isSection then
+			if definition.SectionKey then error("Uma seção não pode estar dentro de outra seção.", 2) end
+			container = self:GetItemContainer()
+		elseif definition.SectionKey then
+			local sectionNode = self.ByKey[definition.SectionKey]
+			if not sectionNode or sectionNode.Definition.Type ~= "Section" then
+				error("SectionKey sem seção anterior correspondente: " .. tostring(definition.SectionKey), 2)
+			end
+			target = sectionNode.Control
+			container = sectionNode.ContentContainer
+		else
+			container = self:GetItemContainer()
+		end
+		if not container or not container.Parent then error("O contêiner do controle " .. definition.Key .. " não está disponível.", 2) end
+		local existing = {}
 		for _, child in ipairs(container:GetChildren()) do
 			existing[child] = true
 		end
-		local methodName = "Add" .. definition.Type; local addMethod = self.Tab[methodName]
+		local methodName = "Add" .. definition.Type
+		local addMethod = target[methodName]
 		if type(addMethod) ~= "function" then error("A Orion não oferece " .. methodName .. ".", 2) end
 		local control
 		if definition.Type == "Label" then
-			control = addMethod(self.Tab, definition.Text)
+			control = addMethod(target, definition.Text)
 		else
 			local config = table.clone(definition.Config or {})
 			if definition.Flag then config.Flag = definition.Flag end
-			control = addMethod(self.Tab, config)
+			control = addMethod(target, config)
 		end
 		local root
 		for _, child in ipairs(container:GetChildren()) do
@@ -48,12 +67,18 @@ return function(API)
 		end
 		if not root then error("A Orion não criou o elemento visual " .. definition.Key .. ".", 2) end
 		root.LayoutOrder = order
+		local contentContainer
+		if isSection then
+			contentContainer = root:FindFirstChild("Holder")
+			if not contentContainer then error("A Orion criou a seção sem um contêiner interno.", 2) end
+		end
 		return {
 			Key = definition.Key,
 			Flag = definition.Flag,
 			ParentFlag = definition.ParentFlag,
 			Definition = definition,
 			Control = control,
+			ContentContainer = contentContainer,
 			LayoutRoot = root,
 			Children = {},
 			Order = order,
@@ -91,7 +116,7 @@ return function(API)
 			if type(definition.Key) ~= "string" or definition.Key == "" then error("Todo controle da Orion precisa de uma Key única.", 2) end
 			if self.ByFlag[definition.Key] then error("Key duplicada no registro de interface: " .. definition.Key, 2) end
 			if definition.Flag and self.ByFlag[definition.Flag] then error("Flag duplicada no registro de interface: " .. definition.Flag, 2) end
-			local node = self:CreateControl(definition, index); self.ByFlag[definition.Key] = node
+			local node = self:CreateControl(definition, index); self.ByKey[definition.Key] = node; self.ByFlag[definition.Key] = node
 			if definition.Flag then self.ByFlag[definition.Flag] = node end
 			table.insert(self.Items, node)
 		end
