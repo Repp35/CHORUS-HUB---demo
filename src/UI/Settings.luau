@@ -23,6 +23,7 @@ return function(API)
 			if
 				roleMatches
 				and target
+				and target ~= Player
 				and target:GetAttribute("Alive") == true
 				and profile.Dead ~= true
 				and profile.Killed ~= true
@@ -55,7 +56,7 @@ return function(API)
 			return false
 		end
 		if not target or not targetRoot or not targetRoot:IsDescendantOf(Services.Workspace) then
-			notifyTeleport("Não encontrei um jogador vivo com esse papel.")
+			notifyTeleport("Não existe outro jogador vivo com esse papel para teleportar.")
 			return false
 		end
 		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
