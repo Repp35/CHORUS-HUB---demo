@@ -20,6 +20,12 @@ Hub modular para uso no cliente de Murder Mystery 2. A interface e os recursos s
 
 Os papéis são obtidos de `GetPlayerData`; atributos de vida e estado do personagem são conferidos separadamente. Se os dados de papel não estiverem disponíveis, o hub não presume que o jogador é Inocente nem executa ações que exigem esse papel.
 
+## Padrões
+
+Sem uma configuração salva, começam ligados o ESP (com nome, você e filtros de Assassino/Xerife/Inocentes) e o Auto Pick Up Gun. A segurança contra o Murderer começa desligada, conforme solicitado.
+
+Começam desligados Auto Farm, reset por bolsa cheia, Speed dinâmico, Anti AFK, Anti Fling, Invisicam do jogador, Noclip, Infinite Jump, Fly, e os filtros de moedas/armas. Uma configuração salva pelo usuário prevalece sobre estes padrões.
+
 ## Estrutura
 
 - `loader.luau`: valida ambiente/jogo, busca módulos do commit mais recente e inicializa um único runtime.

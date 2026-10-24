@@ -176,6 +176,7 @@ return function(API)
 				"local function LoadCfg(Config)",
 				"\tlocal decodeOk, Data = pcall(function() return HttpService:JSONDecode(Config) end)",
 				'\tif not decodeOk or type(Data) ~= "table" then return end',
+				"\tOrionLib.LoadingConfig = true",
 				"\tfor a, b in pairs(Data) do",
 				"\t\tlocal Flag = OrionLib.Flags[a]",
 				"\t\tif Flag then",
@@ -195,6 +196,7 @@ return function(API)
 				'\t\t\twarn("Orion Library Config Loader - Could not find ", a, b)',
 				"\t\tend",
 				"\tend",
+				"\tOrionLib.LoadingConfig = false",
 				"end"
 			),
 			"carregamento da configuração"
@@ -208,7 +210,7 @@ return function(API)
 		source = replaceOnce(
 			source,
 			"\t\t\t\t\tToggleConfig.Callback(Toggle.Value)",
-			"\t\t\t\t\tif not Toggle.Initializing then ToggleConfig.Callback(Toggle.Value) end",
+			"\t\t\t\t\tif not Toggle.Initializing and not OrionLib.LoadingConfig then ToggleConfig.Callback(Toggle.Value) end",
 			"não executar callback antes de carregar as configurações"
 		)
 		source = replaceOnce(

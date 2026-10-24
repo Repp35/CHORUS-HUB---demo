@@ -118,7 +118,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Auto Pick Up Gun (1 frame)",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value)
 						if value then AutoGunPickup:Start()
@@ -197,7 +197,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "ESP",
-					Default = false,
+					Default = true,
 					Save = true,
 					Callback = function(value)
 						if value then ESP:Start()
@@ -485,13 +485,22 @@ return function(API)
 	end
 	function Settings:ResetSavedConfiguration()
 		local fileCleared = clearSavedConfigFile()
-		for _, registry in pairs(self.Registries or {}) do
-			for _, node in ipairs(registry.Items) do
-				local definition = node.Definition
-				local control = node.Control
-				local default = definition.Config and definition.Config.Default
-				if default ~= nil and control and type(control.Set) == "function" then
-					pcall(control.Set, control, default)
+		local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
+		for _, parentPass in ipairs({ false, true }) do
+			for _, tabName in ipairs(tabOrder) do
+				local registry = self.Registries and self.Registries[tabName]
+				for _, node in ipairs(registry and registry.Items or {}) do
+					local definition = node.Definition
+					local control = node.Control
+					local default = definition.Config and definition.Config.Default
+					if
+						default ~= nil
+						and control
+						and type(control.Set) == "function"
+						and (#node.Children > 0) == parentPass
+					then
+						pcall(control.Set, control, default)
+					end
 				end
 			end
 		end
@@ -513,6 +522,26 @@ return function(API)
 		end
 		self.Registries = registries; API.UI.Registries = registries
 		Util.InitializeComponent("inicializar a Orion", function() return OrionLib:Init() end)
+		local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
+		for _, parentPass in ipairs({ false, true }) do
+			for _, tabName in ipairs(tabOrder) do
+				local registry = registries[tabName]
+				for _, node in ipairs(registry.Items) do
+					local definition = node.Definition
+					local callback = definition.Config and definition.Config.Callback
+					local isStateControl = definition.Type == "Toggle" or definition.Type == "Slider"
+					if
+						isStateControl
+						and type(callback) == "function"
+						and (#node.Children > 0) == parentPass
+					then
+						local value = node.Control and node.Control.Value
+						local applied, applyError = pcall(callback, value)
+						if not applied then warn("[Chorus MM2] Não foi possível aplicar " .. node.Key .. ": " .. tostring(applyError)) end
+					end
+				end
+			end
+		end
 		UI:SetOpen(true); return registries
 	end
 
