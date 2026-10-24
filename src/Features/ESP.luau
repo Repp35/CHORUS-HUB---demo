@@ -27,6 +27,7 @@ return function(API)
 		RoleDataAt = 0,
 		RoleDataRefreshInterval = 1.25,
 		RoleDataCacheLifetime = 2,
+		InRound = false,
 		LastErrorAt = 0,
 		PlayerMarkers = {},
 		LastKnownRoles = setmetatable({}, { __mode = "k" }),
@@ -370,6 +371,7 @@ return function(API)
 	-- Refresh
 	function ESP:Refresh()
 		local inMatch, _, container = MatchService:GetRoundContext()
+		self.InRound = inMatch == true
 		if not inMatch then self.RoleData = nil; self.RoleDataAt = 0; table.clear(self.LastKnownRoles) end
 		local needsRoleData = inMatch and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
 		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
@@ -539,6 +541,15 @@ return function(API)
 		end
 		if needsRepair then self:ScheduleRepair() end
 	end
+	local function disableMarkerForFrame(marker)
+		if marker.Highlight and marker.Highlight.Parent then marker.Highlight.Enabled = false end
+		if marker.Gui and marker.Gui.Parent then marker.Gui.Enabled = false end
+	end
+	function ESP:DisableMarkersForFrame()
+		for _, marker in pairs(self.PlayerMarkers) do disableMarkerForFrame(marker) end
+		for _, marker in pairs(self.CoinMarkers) do disableMarkerForFrame(marker) end
+		for _, marker in pairs(self.GunMarkers) do disableMarkerForFrame(marker) end
+	end
 	function ESP:ReportError(context, errorMessage)
 		local now = os.clock()
 		if now - self.LastErrorAt < 5 then return end
@@ -552,7 +563,11 @@ return function(API)
 		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
 		self.RenderConnection = Runtime:Track(Services.RunService.RenderStepped:Connect(function()
-			local ok, errorMessage = xpcall(function() self:ReapplyMarkers() end, Util.FormatError)
+			local ok, errorMessage = xpcall(function()
+				self:DisableMarkersForFrame()
+				self:RefreshPlayers(self.RoleData, self.InRound)
+				self:ReapplyMarkers()
+			end, Util.FormatError)
 			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
 		end))
 		local thread
