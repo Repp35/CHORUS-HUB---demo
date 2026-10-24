@@ -30,15 +30,9 @@ Começam desligados Auto Farm, reset por bolsa cheia, Speed dinâmico, Noclip, I
 
 - `loader.luau`: valida ambiente/jogo, busca módulos do commit mais recente e inicializa um único runtime.
 - `src/Core/`: configuração, serviços Roblox comuns, runtime e utilitários.
-- `src/MM2/Services/` e `src/MM2/Features/`: serviços e recursos específicos do Murder Mystery 2.
-- `src/Universal/Features/`: recursos que não dependem do jogo ou de papéis, como Fly e Anti AFK.
+- `src/Services/`: contexto de rodada, mapa e moedas.
+- `src/Features/`: recursos independentes, cada um com ciclo Start/Stop e limpeza no encerramento.
 - `src/UI/`: adaptação da Orion, construção e agrupamento dos controles.
-
-O `src/Manifest.luau` registra módulos por grupo (`MM2` e `Universal`). O loader pré-carrega os caminhos dos grupos e o inicializador os expõe nas APIs de serviços e recursos.
-
-## Ordem das opções
-
-Cada controle pode definir `Importance`: `Critical` (1), `High` (2), `Normal` (3, padrão) ou `Low` (4). Números menores aparecem antes; controles empatados mantêm a ordem declarada. Os controles filhos são ordenados apenas entre os filhos do mesmo controle pai.
 
 ## Desenvolvimento
 
