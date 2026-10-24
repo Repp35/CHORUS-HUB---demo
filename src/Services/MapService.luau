@@ -45,7 +45,12 @@ return function(API)
 		return instance and instance.Name == "CoinContainer" and (instance:IsA("Folder") or instance:IsA("Model"))
 	end
 	local function isMapCoinContainer(instance)
-		local map = instance and instance.Parent; return isCoinContainer(instance) and map and map:IsA("Model") and map.Parent == Services.Workspace
+		local map = instance and instance.Parent
+		return isCoinContainer(instance)
+			and map
+			and map:IsA("Model")
+			and map.Parent == Services.Workspace
+			and map:GetAttribute("MapID") ~= nil
 	end
 	Runtime:Track(Services.Workspace.DescendantAdded:Connect(function(instance)
 		if isMapCoinContainer(instance) then MapService.CachedContainer = nil; MapService.NextScan = 0 end
@@ -61,17 +66,16 @@ return function(API)
 		if now < self.NextScan and isMapCoinContainer(self.CachedContainer) then return self.CachedContainer end
 		self.CachedContainer = nil
 		if now < self.NextScan then return nil end
-		self.NextScan = now + Config.MapRefreshInterval; local fallback = nil
+		self.NextScan = now + Config.MapRefreshInterval
 		for _, map in ipairs(Services.Workspace:GetChildren()) do
-			if map:IsA("Model") then
+			if map:IsA("Model") and map:GetAttribute("MapID") ~= nil then
 				local container = map:FindFirstChild("CoinContainer")
 				if isCoinContainer(container) then
-					if map:GetAttribute("MapID") ~= nil then self.CachedContainer = container; return container end
-					fallback = fallback or container
+					self.CachedContainer = container
+					return container
 				end
 			end
 		end
-		if fallback then self.CachedContainer = fallback; return fallback end
 		return nil
 	end
 
