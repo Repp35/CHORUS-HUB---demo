@@ -5,6 +5,16 @@ return function(API)
 
 	-- Registry
 	local UIControlRegistry = {}; UIControlRegistry.__index = UIControlRegistry
+	UIControlRegistry.Importance = { Critical = 1, High = 2, Normal = 3, Low = 4 }
+	local DEFAULT_IMPORTANCE = UIControlRegistry.Importance.Normal
+	local function getImportance(definition)
+		local value = definition.Importance
+		if value == nil then return DEFAULT_IMPORTANCE end
+		if type(value) ~= "number" or value % 1 ~= 0 or value < 1 or value > 4 then
+			error("Importance precisa ser um nível de 1 (Critical) a 4 (Low): " .. tostring(definition.Key), 3)
+		end
+		return value
+	end
 	function UIControlRegistry.new(tab, getContainer)
 		return setmetatable({
 			Tab = tab,
@@ -82,6 +92,7 @@ return function(API)
 			LayoutRoot = root,
 			Children = {},
 			Order = order,
+			Importance = getImportance(definition),
 		}
 
 	end
@@ -112,7 +123,30 @@ return function(API)
 
 	-- Ordering
 	function UIControlRegistry:Build(definitions)
+		local orderedDefinitions = {}
+		local function appendSortedRun(firstIndex, lastIndex)
+			local run = {}
+			for sourceIndex = firstIndex, lastIndex do
+				local definition = definitions[sourceIndex]
+				table.insert(run, { Definition = definition, SourceIndex = sourceIndex, Importance = getImportance(definition) })
+			end
+			table.sort(run, function(left, right)
+				if left.Importance == right.Importance then return left.SourceIndex < right.SourceIndex end
+				return left.Importance < right.Importance
+			end)
+			for _, item in ipairs(run) do table.insert(orderedDefinitions, item.Definition) end
+		end
+		local runStart = 1
 		for index, definition in ipairs(definitions) do
+			if definition.Type == "Section" then
+				if runStart < index then appendSortedRun(runStart, index - 1) end
+				table.insert(orderedDefinitions, definition)
+				runStart = index + 1
+			end
+		end
+		if runStart <= #definitions then appendSortedRun(runStart, #definitions) end
+
+		for index, definition in ipairs(orderedDefinitions) do
 			if type(definition.Key) ~= "string" or definition.Key == "" then error("Todo controle da Orion precisa de uma Key única.", 2) end
 			if self.ByFlag[definition.Key] then error("Key duplicada no registro de interface: " .. definition.Key, 2) end
 			if definition.Flag and self.ByFlag[definition.Flag] then error("Flag duplicada no registro de interface: " .. definition.Flag, 2) end
@@ -126,6 +160,12 @@ return function(API)
 				if not parentNode then error("ParentFlag sem controle correspondente: " .. node.ParentFlag, 2) end
 				node.Parent = parentNode; table.insert(parentNode.Children, node)
 			end
+		end
+		for _, node in ipairs(self.Items) do
+			table.sort(node.Children, function(left, right)
+				if left.Importance == right.Importance then return left.Order < right.Order end
+				return left.Importance < right.Importance
+			end)
 		end
 		local function getDepth(node, visiting, memo)
 			if memo[node] then return memo[node] end

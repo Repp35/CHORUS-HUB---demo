@@ -359,9 +359,13 @@ local function collectModulePaths(manifest)
 	}) do
 		add(path)
 	end
-	for _, groupName in ipairs({ "Services", "Features" }) do
-		for _, entry in ipairs(manifest[groupName] or {}) do
-			add(entry.Path)
+	for _, groupName in ipairs(manifest.GroupOrder or {}) do
+		local group = manifest.Groups and manifest.Groups[groupName]
+		if type(group) ~= "table" then error("Grupo de módulos inválido: " .. tostring(groupName), 2) end
+		for _, groupName in ipairs({ "Services", "Features" }) do
+			for _, entry in ipairs(group[groupName] or {}) do
+				add(entry.Path)
+			end
 		end
 	end
 

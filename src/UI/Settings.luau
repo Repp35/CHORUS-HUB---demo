@@ -3,6 +3,7 @@
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
 	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Importance = ControlRegistry.Importance
 	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed
 	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam; local AutoGunPickup = API.Features.AutoGunPickup
 
@@ -113,6 +114,7 @@ return function(API)
 			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
 			{
 				Key = "AutoGunPickup",
+				Importance = Importance.High,
 				SectionKey = "GunPickupSection",
 				Flag = "AutoGunPickup",
 				Type = "Toggle",
@@ -144,6 +146,7 @@ return function(API)
 			{ Key = "CoinCollectionSection", Type = "Section", Config = { Name = "Coleta de moedas" } },
 			{
 				Key = "AutoFarm",
+				Importance = Importance.High,
 				SectionKey = "CoinCollectionSection",
 				Flag = "AutoFarm",
 				Type = "Toggle",
@@ -192,6 +195,7 @@ return function(API)
 			{ Key = "ESPSection", Type = "Section", Config = { Name = "ESP de jogadores e objetos" } },
 			{
 				Key = "ESPEnabled",
+				Importance = Importance.High,
 				SectionKey = "ESPSection",
 				Flag = "ESPEnabled",
 				Type = "Toggle",
@@ -249,6 +253,7 @@ return function(API)
 			{ Key = "ProtectionSection", Type = "Section", Config = { Name = "Proteção" } },
 			{
 				Key = "AntiAFK",
+				Importance = Importance.High,
 				SectionKey = "ProtectionSection",
 				Flag = "AntiAFK",
 				Type = "Toggle",
@@ -264,6 +269,7 @@ return function(API)
 			},
 			{
 				Key = "AntiFling",
+				Importance = Importance.High,
 				SectionKey = "ProtectionSection",
 				Flag = "AntiFling",
 				Type = "Toggle",
@@ -280,6 +286,7 @@ return function(API)
 			{ Key = "MovementSection", Type = "Section", Config = { Name = "Movimento" } },
 			{
 				Key = "PlayerInvisicam",
+				Importance = Importance.High,
 				SectionKey = "MovementSection",
 				Flag = "PlayerInvisicam",
 				Type = "Toggle",
@@ -387,18 +394,21 @@ return function(API)
 			{ Key = "TeleportSection", Type = "Section", Config = { Name = "Teleport" } },
 			{
 				Key = "TeleportFarthestInnocent",
+				Importance = Importance.High,
 				SectionKey = "TeleportSection",
 				Type = "Button",
 				Config = { Name = "Teleportar no inocente mais longe do Murderer", Callback = teleportToFarthestInnocent },
 			},
 			{
 				Key = "TeleportSheriff",
+				Importance = Importance.Normal,
 				SectionKey = "TeleportSection",
 				Type = "Button",
 				Config = { Name = "Teleportar no Xerife", Callback = function() teleportToRole("Sheriff", true) end },
 			},
 			{
 				Key = "TeleportMurderer",
+				Importance = Importance.Normal,
 				SectionKey = "TeleportSection",
 				Type = "Button",
 				Config = { Name = "Teleportar no Murderer", Callback = function() teleportToRole("Murderer") end },
@@ -406,6 +416,7 @@ return function(API)
 			{ Key = "ActionsSection", Type = "Section", Config = { Name = "Ações" } },
 			{
 				Key = "ResetPlayerKill",
+				Importance = Importance.Low,
 				SectionKey = "ActionsSection",
 				Type = "Button",
 				Config = {
@@ -445,6 +456,7 @@ return function(API)
 		local currentOption = option
 		table.insert(ControlGroups.Visuals, {
 			Key = currentOption.Flag,
+			Importance = currentOption.Filter == "Murderer" and Importance.High or Importance.Normal,
 			SectionKey = "ESPSection",
 			Flag = currentOption.Flag,
 			ParentFlag = "ESPEnabled",

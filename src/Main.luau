@@ -17,11 +17,15 @@ return function(API)
 	-- Initialization
 	local ok, startupError = xpcall(function()
 		local manifest = API:Require("src/Manifest")
-		for _, entry in ipairs(manifest.Services) do
-			API.Services[entry.Name] = API:Require(entry.Path)
-		end
-		for _, entry in ipairs(manifest.Features) do
-			API.Features[entry.Name] = API:Require(entry.Path)
+		for _, groupName in ipairs(manifest.GroupOrder) do
+			local group = manifest.Groups[groupName]
+			if type(group) ~= "table" then error("Grupo de módulos inválido: " .. tostring(groupName), 2) end
+			for _, entry in ipairs(group.Services or {}) do
+				API.Services[entry.Name] = API:Require(entry.Path)
+			end
+			for _, entry in ipairs(group.Features or {}) do
+				API.Features[entry.Name] = API:Require(entry.Path)
+			end
 		end
 		API.UI.Window = API:Require("src/UI/Window")
 		local settings = API:Require("src/UI/Settings")
