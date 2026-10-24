@@ -12,6 +12,18 @@ return function(API)
 		if not container then return false end
 		return true, character, humanoid, root, container
 	end
+	function MatchService:GetRoundContext()
+		for _, map in ipairs(Services.Workspace:GetChildren()) do
+			if map:IsA("Model") and map:GetAttribute("MapID") ~= nil then
+				local container = map:FindFirstChild("CoinContainer")
+				if not container or not (container:IsA("Folder") or container:IsA("Model")) then
+					container = nil
+				end
+				return true, map, container
+			end
+		end
+		return false
+	end
 	function MatchService:GetLocalRole()
 		local remote = Services.ReplicatedStorage:FindFirstChild("GetPlayerData", true)
 		if not remote or not remote:IsA("RemoteFunction") then return nil end

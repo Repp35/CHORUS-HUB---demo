@@ -2,6 +2,7 @@
 
 return function(API)
 	local environment = API.SharedEnvironment; local runtimeKey = "__ChorusMM2DeltaRuntime"; local previousRuntime = rawget(environment, runtimeKey)
+	local bootstrapState = API.BootstrapState
 
 	-- RuntimeState
 	local Runtime = {
@@ -10,6 +11,7 @@ return function(API)
 		Cleanups = {},
 		ShuttingDown = false,
 		PreviousRuntime = previousRuntime,
+		BootstrapState = bootstrapState,
 	}
 
 	-- Tracking
@@ -36,6 +38,7 @@ return function(API)
 	function Runtime:Shutdown()
 		if self.ShuttingDown then return end
 		self.ShuttingDown = true
+		if self.BootstrapState then self.BootstrapState.Cancelled = true end
 		for _, cleanup in ipairs(self.Cleanups) do
 			pcall(cleanup)
 		end

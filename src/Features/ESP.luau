@@ -338,10 +338,10 @@ return function(API)
 
 	-- Refresh
 	function ESP:Refresh()
-		local inMatch, _, _, _, container = MatchService:GetContext()
+		local inMatch, _, container = MatchService:GetRoundContext()
 		if not inMatch then self:ClearAll(); self.RoleData = nil; self.RoleDataAt = 0; return end
 		local needsRoleData = self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent; self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil)
-		if self.Filters.CandyCoin then self:RefreshCoins(container)
+		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
 		self:RefreshGuns()
 	end

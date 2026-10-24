@@ -76,15 +76,38 @@ end)
 if not isMM2 then
 	return
 end
+local PreviousBootstrap = rawget(SharedEnvironment, BOOTSTRAP_KEY)
+if type(PreviousBootstrap) == "table" then
+	PreviousBootstrap.Cancelled = true
+	if PreviousBootstrap.Thread then
+		pcall(task.cancel, PreviousBootstrap.Thread)
+	end
+	if type(PreviousBootstrap.Tasks) == "table" then
+		for _, thread in ipairs(PreviousBootstrap.Tasks) do
+			pcall(task.cancel, thread)
+		end
+		table.clear(PreviousBootstrap.Tasks)
+	end
+end
+local BootstrapState = {
+	Cancelled = false,
+	Completed = false,
+	Thread = nil,
+	Tasks = {},
+}
+rawset(SharedEnvironment, BOOTSTRAP_KEY, BootstrapState)
+local function isBootstrapCurrent()
+	return not BootstrapState.Cancelled and rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState
+end
+local function ensureBootstrapCurrent()
+	if BootstrapState.Cancelled or (not BootstrapState.Completed and not isBootstrapCurrent()) then
+		error("Este bootstrap foi substituído por uma nova execução.", 0)
+	end
+end
 local PreviousRuntime = rawget(SharedEnvironment, RUNTIME_KEY)
 if type(PreviousRuntime) == "table" and type(PreviousRuntime.Shutdown) == "function" then
 	pcall(PreviousRuntime.Shutdown, PreviousRuntime)
 end
-if rawget(SharedEnvironment, BOOTSTRAP_KEY) ~= nil then
-	return
-end
-local BootstrapToken = {}
-rawset(SharedEnvironment, BOOTSTRAP_KEY, BootstrapToken)
 
 -- Diagnostics
 local function formatError(message)
@@ -138,6 +161,7 @@ local API = {
 	Branch = BRANCH,
 	Commit = nil,
 	ExecutorName = ExecutorName,
+	BootstrapState = BootstrapState,
 	SharedEnvironment = SharedEnvironment,
 	Cache = {},
 	Sources = {},
@@ -168,6 +192,10 @@ function API:Compile(source, chunkName)
 	return compiler(source, chunkName)
 end
 function API:Require(modulePath)
+	ensureBootstrapCurrent()
+	if self.Runtime and self.Runtime.ShuttingDown then
+		error("O runtime anterior do Chorus já foi encerrado.", 2)
+	end
 	if type(modulePath) ~= "string" or not modulePath:match("^src[%w_/%-]+$") or modulePath:find("..", 1, true) then
 		error("Caminho de módulo inválido: " .. tostring(modulePath), 2)
 	end
@@ -199,6 +227,10 @@ function API:Require(modulePath)
 			error("O módulo " .. modulePath .. " precisa retornar uma fábrica.", 2)
 		end
 		local exported = factory(self)
+		ensureBootstrapCurrent()
+		if self.Runtime and self.Runtime.ShuttingDown then
+			error("O runtime do Chorus foi encerrado durante o carregamento.", 2)
+		end
 		if exported == nil then
 			error("O módulo " .. modulePath .. " não retornou uma API.", 2)
 		end
@@ -220,27 +252,32 @@ local function fetchParallel(jobs, concurrency)
 	local nextJob = 1
 	local activeJobs = 0
 	while nextJob <= #jobs or activeJobs > 0 do
+		ensureBootstrapCurrent()
 		while activeJobs < concurrency and nextJob <= #jobs do
 			local job = jobs[nextJob]
 			nextJob += 1
 			activeJobs += 1
-			task.spawn(function()
+			local jobThread = task.spawn(function()
 				local ok, jobError = pcall(function()
 					local value = job.Run()
-					job.Complete(value)
+					if isBootstrapCurrent() then
+						job.Complete(value)
+					end
 				end)
 				if not ok then
-					if job.Optional then
+					if job.Optional and isBootstrapCurrent() then
 						pcall(job.Complete, false)
-					else
+					elseif isBootstrapCurrent() then
 						failures[job.Name] = tostring(jobError)
 					end
 				end
 				activeJobs -= 1
 			end)
+			table.insert(BootstrapState.Tasks, jobThread)
 		end
 		if activeJobs > 0 then
 			task.wait()
+			ensureBootstrapCurrent()
 		end
 	end
 	for _, job in ipairs(jobs) do
@@ -253,6 +290,7 @@ local function moduleUrl(modulePath)
 	return "https://raw.githubusercontent.com/" .. API.Repository .. "/" .. API.Commit .. "/" .. modulePath .. ".luau"
 end
 local function preloadModules(modulePaths, externalSources)
+	ensureBootstrapCurrent()
 	local jobs = {}
 	for _, modulePath in ipairs(modulePaths) do
 		local path = modulePath
@@ -285,6 +323,7 @@ local function preloadModules(modulePaths, externalSources)
 		end
 	end
 	fetchParallel(jobs, 8)
+	ensureBootstrapCurrent()
 end
 local function compileFactory(modulePath)
 	local chunk, compileError = API:Compile(API.Sources[modulePath], "@" .. modulePath .. "@" .. API.Commit)
@@ -343,8 +382,11 @@ local function clearAPI()
 	end
 end
 local function bootstrap()
+	ensureBootstrapCurrent()
 	API.Commit = resolveLatestCommit()
+	ensureBootstrapCurrent()
 	preloadModules({ "src/Manifest", "src/Core/Config" })
+	ensureBootstrapCurrent()
 	local manifest = compileFactory("src/Manifest")(API)
 	local config = compileFactory("src/Core/Config")(API)
 	if type(manifest) ~= "table" or type(config) ~= "table" then
@@ -373,13 +415,16 @@ local function bootstrap()
 		end
 	end
 	preloadModules(modulePaths, externalSources)
+	ensureBootstrapCurrent()
 	API:Require("src/Main")
+	ensureBootstrapCurrent()
 	if not API.Runtime then
 		error("O runtime do Chorus não foi inicializado.", 2)
 	end
 	API.Runtime:OnShutdown(clearAPI)
 end
-task.defer(function()
+
+local bootstrapThread = task.defer(function()
 	print("[Chorus Loader] Executor: " .. ExecutorName)
 	local ok, errorMessage = xpcall(bootstrap, formatError)
 	if not ok then
@@ -387,9 +432,15 @@ task.defer(function()
 			pcall(API.Runtime.Shutdown, API.Runtime)
 		end
 		clearAPI()
-		warn("[Chorus Loader] " .. tostring(errorMessage))
+		if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then
+			warn("[Chorus Loader] " .. tostring(errorMessage))
+		end
 	end
-	if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapToken then
+	if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then
+		BootstrapState.Completed = ok
+		BootstrapState.Thread = nil
+		table.clear(BootstrapState.Tasks)
 		rawset(SharedEnvironment, BOOTSTRAP_KEY, nil)
 	end
 end)
+BootstrapState.Thread = bootstrapThread
