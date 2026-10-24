@@ -15,7 +15,7 @@ Hub modular para uso no cliente de Murder Mystery 2. A interface e os recursos s
 | Teleportes para jogadores | Rodada ativa, jogador local vivo e alvo vivo com papel registrado. Xerife também aceita Hero. |
 | Anti AFK | Independe de rodada ou papel. |
 | Anti Fling | Independe de rodada ou papel; protege colisão/velocidade dos personagens acompanhados. |
-| Noclip, Fly e Infinite Jump | Independe de rodada ou papel; cada recurso exige seu toggle ligado. |
+| Speed dinâmico, Noclip, Fly e Infinite Jump | Independe de rodada ou papel; cada recurso exige seu toggle ligado. Speed vai de 0 a 100, começa no WalkSpeed atual, é reaplicado após respawn e restaura o valor original ao desligar. |
 | Invisicam | Só funciona enquanto algum recurso que o solicita estiver ativo. |
 
 Os papéis são obtidos de `GetPlayerData`; atributos de vida e estado do personagem são conferidos separadamente. Se os dados de papel não estiverem disponíveis, o hub não presume que o jogador é Inocente nem executa ações que exigem esse papel.

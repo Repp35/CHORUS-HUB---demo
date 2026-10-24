@@ -12,6 +12,7 @@ return function()
 
 		Features = {
 			{ Name = "ESP", Path = "src/Features/ESP" },
+			{ Name = "DynamicSpeed", Path = "src/Features/DynamicSpeed" },
 			{ Name = "Noclip", Path = "src/Features/Noclip" },
 			{ Name = "Invisicam", Path = "src/Features/Invisicam" },
 			{ Name = "AutoFarm", Path = "src/Features/AutoFarm" },

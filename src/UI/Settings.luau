@@ -3,7 +3,7 @@
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
 	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
-	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
+	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed
 	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam; local AutoGunPickup = API.Features.AutoGunPickup
 
 	-- PlayerTeleport
@@ -288,6 +288,38 @@ return function(API)
 					Default = false,
 					Save = true,
 					Callback = function(value) Invisicam:SetSource("Player", value == true) end,
+				},
+			},
+			{
+				Key = "DynamicSpeedEnabled",
+				SectionKey = "MovementSection",
+				Flag = "DynamicSpeedEnabled",
+				Type = "Toggle",
+				Config = {
+					Name = "Speed dinâmico",
+					Default = false,
+					Save = true,
+					Callback = function(value)
+						if value then DynamicSpeed:Start()
+						else DynamicSpeed:Stop() end
+					end,
+				},
+			},
+			{
+				Key = "DynamicSpeedValue",
+				SectionKey = "MovementSection",
+				Flag = "DynamicSpeedValue",
+				ParentFlag = "DynamicSpeedEnabled",
+				Type = "Slider",
+				Config = {
+					Name = "Velocidade",
+					Min = 0,
+					Max = 100,
+					Default = DynamicSpeed:GetCurrentSpeed(),
+					Increment = 1,
+					ValueName = "WalkSpeed",
+					Save = true,
+					Callback = function(value) DynamicSpeed:SetSpeed(value) end,
 				},
 			},
 			{
