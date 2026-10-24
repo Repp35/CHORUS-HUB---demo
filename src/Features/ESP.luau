@@ -243,7 +243,7 @@ return function(API)
 			if roleActive and type(profile) == "table" and type(profile.Role) == "string" then self.LastKnownRoles[target] = profile.Role end
 			local roleCategory = getRoleCategory(role); local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil
 			local category = isSelf and "Self" or roleCategory or "Player"
-			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or roleLabel or (profileSaysDead and "Morto" or inMatch and "Jogador" or "Lobby")
+			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or roleLabel or "Sem papel"
 			if category and identity and self.Filters[category] == true and worldAvailable then
 				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
 				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
