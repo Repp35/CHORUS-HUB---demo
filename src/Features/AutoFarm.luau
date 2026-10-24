@@ -1,7 +1,7 @@
 -- [[ autofarm ]]
 
 return function(API)
-	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
+	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util; local Workspace = Services.Workspace
 	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
 	local Invisicam = API.Features.Invisicam
 	local TOUCH_DISTANCE = 3.5
@@ -26,6 +26,9 @@ return function(API)
 		FarmingCharacter = nil,
 		FarmingHumanoid = nil,
 		SavedHumanoidState = nil,
+		ActivationCharacter = nil,
+		ActivationRoot = nil,
+		ActivationCFrame = nil,
 		RetryAfter = setmetatable({}, { __mode = "k" }),
 		PassedCoins = setmetatable({}, { __mode = "k" }),
 		PassedContainer = nil,
@@ -236,6 +239,34 @@ return function(API)
 		self.FarmingCharacter = nil; self.FarmingHumanoid = nil; self.SavedHumanoidState = nil
 	end
 	function Farm:StopMotion() self:StopFarming() end
+	function Farm:RestoreActivationPosition()
+		local character = self.ActivationCharacter
+		local savedRoot = self.ActivationRoot
+		local savedCFrame = self.ActivationCFrame
+		self.ActivationCharacter = nil; self.ActivationRoot = nil; self.ActivationCFrame = nil
+		if not character or Player.Character ~= character or not savedRoot or not savedCFrame then return false end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not humanoid or humanoid.Health <= 0 or root ~= savedRoot or not root:IsA("BasePart") then return false end
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.IgnoreWater = true
+		local excluded = {}
+		for _, target in ipairs(Services.Players:GetPlayers()) do
+			if target.Character then table.insert(excluded, target.Character) end
+		end
+		params.FilterDescendantsInstances = excluded
+		pcall(function() params.RespectCanCollide = true end)
+		local savedPosition = savedCFrame.Position
+		local floor = Workspace:Raycast(savedPosition + Vector3.new(0, 0.5, 0), Vector3.new(0, -8.5, 0), params)
+		if not floor or savedPosition.Y - floor.Position.Y > 8 or floor.Position.Y > savedPosition.Y + 0.5 then return false end
+		local restored = pcall(function()
+			root.CFrame = savedCFrame
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+		end)
+		return restored
+	end
 
 	-- CoinCollectionLoop
 	function Farm:CollectCoin(coin, character, humanoid, root, container, coinPosition)
@@ -315,6 +346,11 @@ return function(API)
 	-- Lifecycle
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
+		local character = Player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		self.ActivationCharacter = character
+		self.ActivationRoot = root
+		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil
 		self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
 		local thread
 		thread = task.spawn(function()
@@ -341,10 +377,12 @@ return function(API)
 		self.Thread = thread; self:StartProximityCollection()
 		if self.BagFull then self:ResetCharacterForFullBag() end
 	end
-	function Farm:Stop()
+	function Farm:Stop(restoreActivationPosition)
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
 		if thread then pcall(task.cancel, thread) end
 		self:CancelBagReset(); self:StopFarming(); self:StopProximityCollection(); Invisicam:SetSource("AutoFarm", false)
+		if restoreActivationPosition == true then self:RestoreActivationPosition()
+		else self.ActivationCharacter = nil; self.ActivationRoot = nil; self.ActivationCFrame = nil end
 	end
 	Runtime:Track(Player.CharacterAdded:Connect(function() Farm:StopMotion() end))
 
@@ -377,7 +415,7 @@ return function(API)
 		end
 	end
 	bindFarmRoundEvents()
-	Runtime:OnShutdown(function() Farm:Stop() end)
+	Runtime:OnShutdown(function() Farm:Stop(false) end)
 
 	return Farm
 end

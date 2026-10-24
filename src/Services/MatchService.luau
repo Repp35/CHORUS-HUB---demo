@@ -24,11 +24,15 @@ return function(API)
 		end
 		return false
 	end
-	function MatchService:GetLocalRole()
+	function MatchService:GetPlayerData()
 		local remote = Services.ReplicatedStorage:FindFirstChild("GetPlayerData", true)
 		if not remote or not remote:IsA("RemoteFunction") then return nil end
 		local ok, data = pcall(function() return remote:InvokeServer() end)
-		if not ok or type(data) ~= "table" then return nil end
+		return ok and type(data) == "table" and data or nil
+	end
+	function MatchService:GetLocalRole()
+		local data = self:GetPlayerData()
+		if not data then return nil end
 		local profile = data[Player.Name]
 		return type(profile) == "table" and type(profile.Role) == "string" and profile.Role or nil
 	end

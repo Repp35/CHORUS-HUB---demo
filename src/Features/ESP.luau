@@ -9,6 +9,7 @@ return function(API)
 		Enabled = false,
 		ShowIdentity = true,
 		ShowUsername = false,
+		ShowSelf = true,
 		NameTextSizeNear = 12,
 		NameTextSizeFar = 17,
 		UsernameTextSizeMin = 10,
@@ -35,6 +36,7 @@ return function(API)
 			Murderer = true,
 			Sheriff = true,
 			Innocent = true,
+			Self = true,
 			CandyCoin = false,
 			Gun = false,
 		},
@@ -42,6 +44,7 @@ return function(API)
 			Murderer = Color3.fromRGB(255, 65, 65),
 			Sheriff = Color3.fromRGB(70, 155, 255),
 			Innocent = Color3.fromRGB(70, 220, 120),
+			Self = Color3.fromRGB(220, 220, 255),
 			CandyCoin = Color3.fromRGB(255, 185, 70),
 			Gun = Color3.fromRGB(70, 225, 255),
 		},
@@ -203,10 +206,22 @@ return function(API)
 		end
 		return true
 	end
+	function ESP:SetShowSelf(enabled)
+		self.ShowSelf = enabled == true
+		self.Filters.Self = self.ShowSelf
+		if not self.ShowSelf then
+			local marker = self.PlayerMarkers[Player]
+			if marker then destroyMarker(marker); self.PlayerMarkers[Player] = nil end
+		elseif self.Enabled then
+			self:ScheduleRepair()
+		end
+		return true
+	end
 	function ESP:RefreshPlayers(roleData)
 		local keepWorld = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for _, target in ipairs(Services.Players:GetPlayers()) do
-			if target == Player then continue end
+			local isSelf = target == Player
+			if isSelf and not self.ShowSelf then continue end
 			local profile = roleData and roleData[target.Name]; local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local root = character and character:FindFirstChild("HumanoidRootPart"); local aliveAttribute = target:GetAttribute("Alive")
 			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
@@ -219,7 +234,9 @@ return function(API)
 				and humanoid.Health > 0
 				and root
 				and root:IsA("BasePart")
-			local category = getRoleCategory(role); local identity = getRoleLabel(role)
+			local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil
+			local category = isSelf and "Self" or getRoleCategory(role)
+			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or getRoleLabel(role)
 			if category and identity and self.Filters[category] == true and worldAvailable then
 				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
 				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
@@ -342,7 +359,7 @@ return function(API)
 	function ESP:Refresh()
 		local inMatch, _, container = MatchService:GetRoundContext()
 		if not inMatch then self:ClearAll(); self.RoleData = nil; self.RoleDataAt = 0; return end
-		local needsRoleData = self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent; self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil)
+		local needsRoleData = self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent; self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
 		self:RefreshGuns()

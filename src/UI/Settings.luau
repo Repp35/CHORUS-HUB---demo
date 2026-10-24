@@ -2,9 +2,108 @@
 
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
-	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump
 	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam; local AutoGunPickup = API.Features.AutoGunPickup
+
+	-- PlayerTeleport
+	local function notifyTeleport(content)
+		if type(OrionLib.MakeNotification) == "function" then
+			pcall(OrionLib.MakeNotification, OrionLib, { Name = "Teleport", Content = content, Time = 4 })
+		end
+	end
+	local function findAliveRoleTarget(roleData, wantedRole, allowHero)
+		for playerName, profile in pairs(roleData) do
+			local roleMatches = type(profile) == "table"
+				and (profile.Role == wantedRole or allowHero and wantedRole == "Sheriff" and profile.Role == "Hero")
+			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil
+			local character = target and target.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if
+				roleMatches
+				and target
+				and target:GetAttribute("Alive") == true
+				and profile.Dead ~= true
+				and profile.Killed ~= true
+				and humanoid
+				and humanoid.Health > 0
+				and root
+				and root:IsA("BasePart")
+				and character:IsDescendantOf(Services.Workspace)
+			then
+				return target, root
+			end
+		end
+		return nil
+	end
+	local function teleportToPlayer(target, targetRoot)
+		local inRound = MatchService:GetRoundContext()
+		local character = Player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if
+			not inRound
+			or Player:GetAttribute("Alive") ~= true
+			or not humanoid
+			or humanoid.Health <= 0
+			or not root
+			or not root:IsA("BasePart")
+			or not character:IsDescendantOf(Services.Workspace)
+		then
+			notifyTeleport("Entre em uma partida e esteja vivo para usar o teleporte.")
+			return false
+		end
+		if not target or not targetRoot or not targetRoot:IsDescendantOf(Services.Workspace) then
+			notifyTeleport("Não encontrei um jogador vivo com esse papel.")
+			return false
+		end
+		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
+		if not ok then notifyTeleport("Não foi possível teleportar até esse jogador."); return false end
+		notifyTeleport("Teleportado até " .. target.DisplayName .. ".")
+		return true
+	end
+	local function teleportToRole(role, allowHero)
+		local inRound = MatchService:GetRoundContext()
+		if not inRound then notifyTeleport("A partida ainda não começou."); return end
+		local roleData = MatchService:GetPlayerData()
+		if not roleData then notifyTeleport("Não foi possível consultar os papéis desta partida."); return end
+		local target, targetRoot = findAliveRoleTarget(roleData, role, allowHero)
+		teleportToPlayer(target, targetRoot)
+	end
+	local function teleportToFarthestInnocent()
+		local inRound = MatchService:GetRoundContext()
+		if not inRound then notifyTeleport("A partida ainda não começou."); return end
+		local roleData = MatchService:GetPlayerData()
+		if not roleData then notifyTeleport("Não foi possível consultar os papéis desta partida."); return end
+		local _, murdererRoot = findAliveRoleTarget(roleData, "Murderer")
+		if not murdererRoot then notifyTeleport("Não encontrei o Murderer vivo."); return end
+		local farthestTarget, farthestRoot, farthestDistance
+		for playerName, profile in pairs(roleData) do
+			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil
+			if target and target ~= Player and type(profile) == "table" and profile.Role == "Innocent" then
+				local character = target.Character
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if
+					target:GetAttribute("Alive") == true
+					and profile.Dead ~= true
+					and profile.Killed ~= true
+					and humanoid
+					and humanoid.Health > 0
+					and root
+					and root:IsA("BasePart")
+					and character:IsDescendantOf(Services.Workspace)
+				then
+					local distance = (root.Position - murdererRoot.Position).Magnitude
+					if not farthestDistance or distance > farthestDistance then
+						farthestTarget, farthestRoot, farthestDistance = target, root, distance
+					end
+				end
+			end
+		end
+		teleportToPlayer(farthestTarget, farthestRoot)
+	end
 
 	-- ControlGroups
 	local Settings = {}
@@ -53,7 +152,7 @@ return function(API)
 					Save = true,
 					Callback = function(value)
 						if value then Farm:Start()
-						else Farm:Stop() end
+						else Farm:Stop(true) end
 					end,
 				},
 			},
@@ -129,6 +228,19 @@ return function(API)
 					Default = false,
 					Save = true,
 					Callback = function(value) ESP.ShowUsername = value == true end,
+				},
+			},
+			{
+				Key = "ESPShowSelf",
+				SectionKey = "ESPSection",
+				Flag = "ESPShowSelf",
+				ParentFlag = "ESPEnabled",
+				Type = "Toggle",
+				Config = {
+					Name = "Mostrar você",
+					Default = true,
+					Save = true,
+					Callback = function(value) ESP:SetShowSelf(value) end,
 				},
 			},
 		},
@@ -238,6 +350,25 @@ return function(API)
 					Save = true,
 					Callback = function(value) Fly:SetSpeed(value) end,
 				},
+			},
+			{ Key = "TeleportSection", Type = "Section", Config = { Name = "Teleport" } },
+			{
+				Key = "TeleportFarthestInnocent",
+				SectionKey = "TeleportSection",
+				Type = "Button",
+				Config = { Name = "Teleportar no inocente mais longe do Murderer", Callback = teleportToFarthestInnocent },
+			},
+			{
+				Key = "TeleportSheriff",
+				SectionKey = "TeleportSection",
+				Type = "Button",
+				Config = { Name = "Teleportar no Xerife", Callback = function() teleportToRole("Sheriff", true) end },
+			},
+			{
+				Key = "TeleportMurderer",
+				SectionKey = "TeleportSection",
+				Type = "Button",
+				Config = { Name = "Teleportar no Murderer", Callback = function() teleportToRole("Murderer") end },
 			},
 			{ Key = "ActionsSection", Type = "Section", Config = { Name = "Ações" } },
 			{
