@@ -46,7 +46,7 @@ return function(API)
 			Sheriff = Color3.fromRGB(70, 155, 255),
 			Innocent = Color3.fromRGB(70, 220, 120),
 			Player = Color3.fromRGB(235, 235, 235),
-			Self = Color3.fromRGB(70, 220, 120),
+			Self = Color3.fromRGB(235, 235, 235),
 			CandyCoin = Color3.fromRGB(255, 185, 70),
 			Gun = Color3.fromRGB(70, 225, 255),
 		},
@@ -245,7 +245,10 @@ return function(API)
 			local category = isSelf and "Self" or roleCategory or "Player"
 			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or roleLabel or "Sem papel"
 			if category and identity and self.Filters[category] == true and worldAvailable then
-				keepWorld[target] = true; local color = self.Colors[category]; local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
+				keepWorld[target] = true
+				local colorCategory = isSelf and (roleCategory or "Player") or category
+				local color = self.Colors[colorCategory]
+				local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
 				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
 				if
 					not marker
@@ -259,6 +262,7 @@ return function(API)
 					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
 				marker.Category = category
+				marker.ColorCategory = colorCategory
 				marker.Role = roleCategory and role or nil
 				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
 				marker.Highlight.FillColor = color
@@ -437,7 +441,7 @@ return function(API)
 				needsRepair = true
 				continue
 			end
-			local color = self.Colors[marker.Category]
+			local color = self.Colors[marker.ColorCategory or marker.Category]
 			if not color then
 				needsRepair = true
 				continue
