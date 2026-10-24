@@ -1,11 +1,9 @@
 -- [[ autofarm ]]
 
 return function(API)
-	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util; local Workspace = Services.Workspace
-	local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match; local Noclip = API.Features.Noclip
-	local Invisicam = API.Features.Invisicam
-	local TOUCH_DISTANCE = 3.5
-	local TOUCH_RETRY_DELAY = 0.12
+	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
+	local Workspace = Services.Workspace; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
+	local Noclip = API.Features.Noclip; local Invisicam = API.Features.Invisicam; local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12
 	local PASS_THROUGH_DISTANCE = 1.5
 
 	-- State
@@ -49,15 +47,22 @@ return function(API)
 		self.LastErrorAt = now; warn("[Chorus MM2] Auto Farm recuperando após erro em " .. context .. ": " .. tostring(errorMessage))
 	end
 	function Farm:ResetCharacterForFullBag()
-		if not self.Enabled or not self.BagFull or not self.ResetWhenBagFull or self.BagResetTriggered or Runtime.ShuttingDown then return false end
+		if
+			not self.Enabled
+			or not self.BagFull
+			or not self.ResetWhenBagFull
+			or self.BagResetTriggered
+			or Runtime.ShuttingDown
+		then
+			return false
+		end
 		if MatchService:GetLocalRole() ~= "Innocent" then return false end
 		local inMatch, character, humanoid = MatchService:GetContext()
 		if not inMatch or not character or not humanoid then return false end
 		self.BagResetTriggered = true; self:StopFarming()
 		local thread
 		thread = task.spawn(function()
-			task.wait(0.5)
-			local canReset = self.Enabled
+			task.wait(0.5); local canReset = self.Enabled
 				and self.BagFull
 				and self.ResetWhenBagFull
 				and not Runtime.ShuttingDown
@@ -67,38 +72,25 @@ return function(API)
 				and Player:GetAttribute("Alive") == true
 			if canReset and MatchService:GetLocalRole() == "Innocent" then
 				local resetOk, resetError = pcall(function() humanoid.Health = 0 end)
-				if not resetOk then
-					self.BagResetTriggered = false
-					self:ReportError("reset da bolsa cheia", resetError)
-				end
+				if not resetOk then self.BagResetTriggered = false; self:ReportError("reset da bolsa cheia", resetError) end
 			else
 				self.BagResetTriggered = false
 			end
 			if self.BagResetThread == thread then self.BagResetThread = nil end
 		end)
-		self.BagResetThread = thread
-		return true
+		self.BagResetThread = thread; return true
 	end
 	function Farm:SetResetWhenBagFull(enabled)
 		self.ResetWhenBagFull = enabled == true
-		if not self.ResetWhenBagFull then
-			self:CancelBagReset()
-		elseif self.Enabled and self.BagFull then
-			self:ResetCharacterForFullBag()
-		end
+		if not self.ResetWhenBagFull then self:CancelBagReset()
+		elseif self.Enabled and self.BagFull then self:ResetCharacterForFullBag() end
 	end
 	function Farm:CancelBagReset()
-		local thread = self.BagResetThread
-		self.BagResetThread = nil
-		if thread then
-			pcall(task.cancel, thread)
-			self.BagResetTriggered = false
-		end
+		local thread = self.BagResetThread; self.BagResetThread = nil
+		if thread then pcall(task.cancel, thread); self.BagResetTriggered = false end
 	end
 	function Farm:ResetBagState()
-		self:CancelBagReset()
-		self.BagFull = false
-		self.BagResetTriggered = false
+		self:CancelBagReset(); self.BagFull = false; self.BagResetTriggered = false
 	end
 
 	-- Noclip
@@ -116,8 +108,7 @@ return function(API)
 		if not self.Enabled or not root or not root.Parent or not coin or not coin.Parent then return end
 		local touchFunction = getTouchFunction()
 		if not touchFunction then return false end
-		local enterOk = pcall(touchFunction, root, coin, 0); local exitOk = pcall(touchFunction, root, coin, 1)
-		return enterOk and exitOk
+		local enterOk = pcall(touchFunction, root, coin, 0); local exitOk = pcall(touchFunction, root, coin, 1); return enterOk and exitOk
 	end
 	function Farm:TouchCoinInRange(root, coin, container, coinPosition)
 		if
@@ -133,10 +124,7 @@ return function(API)
 		coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin]
 		if not coinPosition or (root.Position - coinPosition).Magnitude > TOUCH_DISTANCE then return false end
 		local now = os.clock()
-		if (self.RetryAfter[coin] or 0) <= now then
-			local touched = self:TouchOnce(root, coin)
-			self.RetryAfter[coin] = now + (touched and TOUCH_RETRY_DELAY or 0.05)
-		end
+		if (self.RetryAfter[coin] or 0) <= now then local touched = self:TouchOnce(root, coin); self.RetryAfter[coin] = now + (touched and TOUCH_RETRY_DELAY or 0.05) end
 		return true
 	end
 
@@ -240,30 +228,21 @@ return function(API)
 	end
 	function Farm:StopMotion() self:StopFarming() end
 	function Farm:RestoreActivationPosition()
-		local character = self.ActivationCharacter
-		local savedRoot = self.ActivationRoot
-		local savedCFrame = self.ActivationCFrame
-		self.ActivationCharacter = nil; self.ActivationRoot = nil; self.ActivationCFrame = nil
+		local character = self.ActivationCharacter; local savedRoot = self.ActivationRoot; local savedCFrame = self.ActivationCFrame; self.ActivationCharacter = nil
+		self.ActivationRoot = nil; self.ActivationCFrame = nil
 		if not character or Player.Character ~= character or not savedRoot or not savedCFrame then return false end
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		local root = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChildOfClass("Humanoid"); local root = character:FindFirstChild("HumanoidRootPart")
 		if not humanoid or humanoid.Health <= 0 or root ~= savedRoot or not root:IsA("BasePart") then return false end
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.IgnoreWater = true
-		local excluded = {}
+		local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.IgnoreWater = true; local excluded = {}
 		for _, target in ipairs(Services.Players:GetPlayers()) do
 			if target.Character then table.insert(excluded, target.Character) end
 		end
 		params.FilterDescendantsInstances = excluded
 		pcall(function() params.RespectCanCollide = true end)
-		local savedPosition = savedCFrame.Position
-		local floor = Workspace:Raycast(savedPosition + Vector3.new(0, 0.5, 0), Vector3.new(0, -8.5, 0), params)
+		local savedPosition = savedCFrame.Position; local floor = Workspace:Raycast(savedPosition + Vector3.new(0, 0.5, 0), Vector3.new(0, -8.5, 0), params)
 		if not floor or savedPosition.Y - floor.Position.Y > 8 or floor.Position.Y > savedPosition.Y + 0.5 then return false end
 		local restored = pcall(function()
-			root.CFrame = savedCFrame
-			root.AssemblyLinearVelocity = Vector3.zero
-			root.AssemblyAngularVelocity = Vector3.zero
+			root.CFrame = savedCFrame; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero
 		end)
 		return restored
 	end
@@ -278,14 +257,11 @@ return function(API)
 			if not Util.IsFiniteVector3(coinPosition) or not Util.IsFiniteVector3(root.Position) then return end
 			local speed = tonumber(self.Speed)
 			if not speed or speed ~= speed or speed == math.huge then speed = 23 end
-			speed = math.max(speed, 1)
-			local target = coinPosition - Vector3.new(0, 2.5, 0)
-			local approach = target - root.Position; local approachDistance = approach.Magnitude
+			speed = math.max(speed, 1); local target = coinPosition - Vector3.new(0, 2.5, 0); local approach = target - root.Position; local approachDistance = approach.Magnitude
 			if approachDistance ~= approachDistance or approachDistance == math.huge then return end
 			if approachDistance > 0.001 then target += approach.Unit * PASS_THROUGH_DISTANCE end
 			if not Util.IsFiniteVector3(target) then return end
-			local duration = math.max((target - root.Position).Magnitude / speed, 1 / 60)
-			local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
+			local duration = math.max((target - root.Position).Magnitude / speed, 1 / 60); local targetCFrame = CFrame.new(target) * CFrame.Angles(math.rad(90), 0, 0)
 			local tween = Services.TweenService:Create(
 				root,
 				TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
@@ -333,25 +309,24 @@ return function(API)
 			then
 				if not self:TouchCoinInRange(root, coin, container, coinPosition) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
 			end
-			if routeCompleted and coin.Parent and coin:IsDescendantOf(container) and CoinService:IsCollectable(coin, container) then
+			if
+				routeCompleted
+				and coin.Parent
+				and coin:IsDescendantOf(container)
+				and CoinService:IsCollectable(coin, container)
+			then
 				self.PassedCoins[coin] = true
 			end
 		end, Util.FormatError)
-		if not succeeded then
-			self:StopFarming(); self.RetryAfter[coin] = os.clock() + 0.8
-			self:ReportError("coleta", errorMessage)
-		end
+		if not succeeded then self:StopFarming(); self.RetryAfter[coin] = os.clock() + 0.8; self:ReportError("coleta", errorMessage) end
 	end
 
 	-- Lifecycle
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		local character = Player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		self.ActivationCharacter = character
-		self.ActivationRoot = root
-		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil
-		self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
+		local character = Player.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); self.ActivationCharacter = character; self.ActivationRoot = root
+		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil
+		self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -359,15 +334,11 @@ return function(API)
 					local inMatch, character, humanoid, root, container = MatchService:GetContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
-					if self.PassedContainer ~= container then
-						table.clear(self.PassedCoins); self.PassedContainer = container
-					end
-					local coin, _, coinPosition = MapService:GetNearestCoin(container, root.Position, self.RetryAfter, self.PassedCoins)
+					if self.PassedContainer ~= container then table.clear(self.PassedCoins); self.PassedContainer = container end
+					local coin, _, coinPosition =
+						MapService:GetNearestCoin(container, root.Position, self.RetryAfter, self.PassedCoins)
 					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
-					else
-						-- Keep visited coins excluded; wait for the map cache to discover new ones.
-						self:StopFarming(); task.wait(0.25)
-					end
+					else self:StopFarming(); task.wait(0.25) end
 				end, Util.FormatError)
 				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
 			end
@@ -396,11 +367,7 @@ return function(API)
 				if not CoinService:NormalizeKind(coinType) then return end
 				local collected = tonumber(count); local capacity = tonumber(maximum)
 				if not collected or not capacity or capacity <= 0 then return end
-				if collected >= capacity then
-					Farm.BagFull = true
-					Farm:StopFarming()
-					Farm:ResetCharacterForFullBag()
-				end
+				if collected >= capacity then Farm.BagFull = true; Farm:StopFarming(); Farm:ResetCharacterForFullBag() end
 			end))
 		end
 		for _, eventName in ipairs({ "RoundStart", "CoinsStarted", "RoundEndFade" }) do

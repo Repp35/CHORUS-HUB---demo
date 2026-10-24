@@ -1,8 +1,7 @@
 -- [[ runtime ]]
 
 return function(API)
-	local environment = API.SharedEnvironment; local runtimeKey = "__ChorusMM2DeltaRuntime"; local previousRuntime = rawget(environment, runtimeKey)
-	local bootstrapState = API.BootstrapState
+	local environment = API.SharedEnvironment; local runtimeKey = "__ChorusMM2DeltaRuntime"; local previousRuntime = rawget(environment, runtimeKey); local bootstrapState = API.BootstrapState
 
 	-- RuntimeState
 	local Runtime = {

@@ -40,9 +40,9 @@ return function(API)
 	end
 	function CameraAssist:_IsOccluder(part)
 		if not part or not part:IsA("BasePart") then return false end
-		local ok, transparency, localTransparency = pcall(function()
-			return part.Transparency, part.LocalTransparencyModifier
-		end)
+		local ok, transparency, localTransparency = pcall(
+			function() return part.Transparency, part.LocalTransparencyModifier end
+		)
 		return ok and transparency < 0.98 and localTransparency < 0.98
 	end
 	function CameraAssist:_RestoreUnusedOccluders()
@@ -70,10 +70,7 @@ return function(API)
 			local instance = result.Instance
 			if instance == Workspace.Terrain then return true end
 			if not instance:IsA("BasePart") or excludedParts[instance] then return occluded end
-			if self:_IsOccluder(instance) then
-				occluded = true
-				self:_FadeOccluder(instance)
-			end
+			if self:_IsOccluder(instance) then occluded = true; self:_FadeOccluder(instance) end
 			excludedParts[instance] = true; table.insert(excludedInstances, instance)
 		end
 		return occluded
@@ -85,12 +82,11 @@ return function(API)
 			{ Size = size.Y, Vector = part.CFrame.UpVector },
 			{ Size = size.Z, Vector = part.CFrame.LookVector },
 		}
+
 		table.sort(axes, function(left, right) return left.Size > right.Size end)
 		local samples = { part.Position }
 		for index = 1, math.min(2, #axes) do
-			local offset = axes[index].Vector * axes[index].Size * 0.42
-			table.insert(samples, part.Position + offset)
-			table.insert(samples, part.Position - offset)
+			local offset = axes[index].Vector * axes[index].Size * 0.42; table.insert(samples, part.Position + offset); table.insert(samples, part.Position - offset)
 		end
 		return samples
 	end
@@ -107,9 +103,7 @@ return function(API)
 		end
 		local targets = {}
 		for _, part in ipairs(character:GetChildren()) do
-			if part:IsA("BasePart") and part ~= root and part.Transparency < 1 then
-				table.insert(targets, part)
-			end
+			if part:IsA("BasePart") and part ~= root and part.Transparency < 1 then table.insert(targets, part) end
 		end
 		if #targets == 0 then self:_RestoreUnusedOccluders(); return end
 		if humanoid.Health > 0 then
@@ -170,8 +164,7 @@ return function(API)
 		end
 		local setupOk, setupError = pcall(function()
 			local raycastParams = RaycastParams.new(); raycastParams.FilterType = Enum.RaycastFilterType.Exclude; local overlapParams = OverlapParams.new()
-			overlapParams.FilterType = Enum.RaycastFilterType.Exclude; overlapParams.MaxParts = 32; self.RaycastParams = raycastParams
-			self.OverlapParams = overlapParams
+			overlapParams.FilterType = Enum.RaycastFilterType.Exclude; overlapParams.MaxParts = 32; self.RaycastParams = raycastParams; self.OverlapParams = overlapParams
 			self.Connection = Services.RunService.RenderStepped:Connect(function()
 				local updateOk, updateError = pcall(function() self:_Update() end)
 				if not updateOk then self:_Warn("erro ao atualizar a câmera: " .. tostring(updateError)) end
@@ -188,8 +181,8 @@ return function(API)
 		if self.OcclusionModeManaged then
 			pcall(function() Player.DevCameraOcclusionMode = self.SavedOcclusionMode end)
 		end
-		self.SavedOcclusionMode = nil; self.OcclusionModeManaged = false
-		self:_RestoreAllOccluders(); self.RaycastParams = nil; self.OverlapParams = nil
+		self.SavedOcclusionMode = nil; self.OcclusionModeManaged = false; self:_RestoreAllOccluders(); self.RaycastParams = nil
+		self.OverlapParams = nil
 	end
 	function CameraAssist:Shutdown()
 		table.clear(self.Sources); self:_Deactivate()

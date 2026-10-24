@@ -1,17 +1,11 @@
 -- [[ main ]]
 
 return function(API)
+
 	-- Dependencies
-	API.Config = API:Require("src/Core/Config")
-	API.Roblox = API:Require("src/Core/RobloxServices")
-	API.Player = API.Roblox.Players.LocalPlayer
-	if not API.Player then
-		error("Este arquivo precisa ser executado no cliente do Roblox.")
-	end
-	API.Runtime = API:Require("src/Core/Runtime")
-	API.Util = API:Require("src/Core/Util")
-	API.Services = {}
-	API.Features = {}
+	API.Config = API:Require("src/Core/Config"); API.Roblox = API:Require("src/Core/RobloxServices"); API.Player = API.Roblox.Players.LocalPlayer
+	if not API.Player then error("Este arquivo precisa ser executado no cliente do Roblox.") end
+	API.Runtime = API:Require("src/Core/Runtime"); API.Util = API:Require("src/Core/Util"); API.Services = {}; API.Features = {}
 	API.UI = {}
 
 	-- Initialization
@@ -27,16 +21,9 @@ return function(API)
 				API.Features[entry.Name] = API:Require(entry.Path)
 			end
 		end
-		API.UI.Window = API:Require("src/UI/Window")
-		local settings = API:Require("src/UI/Settings")
-		settings:Init()
-	end, function(errorMessage)
-		return tostring(errorMessage)
-	end)
-	if not ok then
-		API.Runtime:Shutdown()
-		error("[Chorus MM2] Falha na inicialização: " .. tostring(startupError), 0)
-	end
+		API.UI.Window = API:Require("src/UI/Window"); local settings = API:Require("src/UI/Settings"); settings:Init()
+	end, function(errorMessage) return tostring(errorMessage) end)
+	if not ok then API.Runtime:Shutdown(); error("[Chorus MM2] Falha na inicialização: " .. tostring(startupError), 0) end
 
 	return API
 end

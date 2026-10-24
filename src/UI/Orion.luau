@@ -5,45 +5,24 @@ return function(API)
 	local ICONS_EXPRESSION =
 		'Icons = HttpService:JSONDecode(game:HttpGetAsync("https://raw.githubusercontent.com/evoincorp/lucideblox/master/src/modules/util/icons.json")).icons'
 	local REQUIRED_API = { "Init", "MakeWindow", "Destroy", "ToggleUi" }
-
-	local function lines(...)
-		return table.concat({ ... }, "\n")
-	end
-
+	local function lines(...) return table.concat({ ... }, "\n") end
 	local function replaceOnce(source, original, replacement, label)
 		local startAt, endAt = string.find(source, original, 1, true)
-		if not startAt then
-			error("A versão da Orion não contém o trecho esperado: " .. label, 0)
-		end
-		if string.find(source, original, endAt + 1, true) then
-			error("O trecho da Orion não é único: " .. label, 0)
-		end
+		if not startAt then error("A versão da Orion não contém o trecho esperado: " .. label, 0) end
+		if string.find(source, original, endAt + 1, true) then error("O trecho da Orion não é único: " .. label, 0) end
 		return string.sub(source, 1, startAt - 1) .. replacement .. string.sub(source, endAt + 1)
 	end
-
 	local function replaceRange(source, startMarker, endMarker, replacement, label)
-		local startAt = string.find(source, startMarker, 1, true)
-		local endAt = startAt and string.find(source, endMarker, startAt, true)
-		if not startAt or not endAt then
-			error("A versão da Orion não contém o bloco esperado: " .. label, 0)
-		end
+		local startAt = string.find(source, startMarker, 1, true); local endAt = startAt and string.find(source, endMarker, startAt, true)
+		if not startAt or not endAt then error("A versão da Orion não contém o bloco esperado: " .. label, 0) end
 		return string.sub(source, 1, startAt - 1) .. replacement .. string.sub(source, endAt)
 	end
-
 	local function replaceRepeated(source, original, replacement, expectedCount, label)
-		local result = {}
-		local cursor = 1
-		local count = 0
+		local result = {}; local cursor = 1; local count = 0
 		while true do
 			local startAt, endAt = string.find(source, original, cursor, true)
-			if not startAt then
-				table.insert(result, string.sub(source, cursor))
-				break
-			end
-			table.insert(result, string.sub(source, cursor, startAt - 1))
-			table.insert(result, replacement)
-			cursor = endAt + 1
-			count += 1
+			if not startAt then table.insert(result, string.sub(source, cursor)); break end
+			table.insert(result, string.sub(source, cursor, startAt - 1)); table.insert(result, replacement); cursor = endAt + 1; count += 1
 		end
 		if count ~= expectedCount then
 			error(
@@ -59,29 +38,20 @@ return function(API)
 		end
 		return table.concat(result)
 	end
-
 	local function cleanupOrionGui()
 		local hosts = { API.Roblox.CoreGui }
 		if type(gethui) == "function" then
 			local ok, host = pcall(gethui)
-			if ok and typeof(host) == "Instance" and host ~= hosts[1] then
-				table.insert(hosts, host)
-			end
+			if ok and typeof(host) == "Instance" and host ~= hosts[1] then table.insert(hosts, host) end
 		end
 		for _, host in ipairs(hosts) do
 			for _, child in ipairs(host:GetChildren()) do
-				if child.Name == "Orion" then
-					pcall(function()
-						child:Destroy()
-					end)
-				end
+				if child.Name == "Orion" then pcall(function() child:Destroy() end) end
 			end
 		end
 	end
-
 	local function patchSource(source)
-		source = string.gsub(source, "\r\n", "\n")
-		source = replaceOnce(source, ICONS_EXPRESSION, "Icons = {}", "carregamento opcional de ícones")
+		source = string.gsub(source, "\r\n", "\n"); source = replaceOnce(source, ICONS_EXPRESSION, "Icons = {}", "carregamento opcional de ícones")
 		source = replaceRange(
 			source,
 			'local Orion = Instance.new("ScreenGui")',
@@ -191,7 +161,7 @@ return function(API)
 				"\t\t\t\t\tFlag:Set(b)",
 				"\t\t\t\tend",
 				"\t\t\tend)",
-				"\t\t\tif not setOk then warn(\"Orion config: falha ao aplicar \" .. tostring(a) .. \": \" .. tostring(setError)) end",
+				'\t\t\tif not setOk then warn("Orion config: falha ao aplicar " .. tostring(a) .. ": " .. tostring(setError)) end',
 				"\t\telse",
 				'\t\t\twarn("Orion Library Config Loader - Could not find ", a, b)',
 				"\t\tend",
@@ -309,7 +279,6 @@ return function(API)
 			"\t\t\t\t\t\tSlider:Set(SliderConfig.Min + ((SliderConfig.Max - SliderConfig.Min) * SizeScale))",
 			"atualização do slider sem gravação por quadro"
 		)
-
 		for _, connectionPatch in ipairs({
 			{
 				"DragPoint.InputBegan:Connect(function(Input)",
@@ -348,34 +317,22 @@ return function(API)
 				"slider: fim",
 			},
 		}) do
+
 			source =
 				replaceRepeated(source, connectionPatch[1], connectionPatch[2], connectionPatch[3], connectionPatch[4])
 		end
-
 		return source
 	end
-
 	local ok, result = pcall(function()
 		local source = API:Fetch(Config.OrionSource)
-		if type(source) ~= "string" or source == "" then
-			error("A fonte da Orion está vazia ou inválida.")
-		end
-		source = patchSource(source)
-		local chunk, compileError = API:Compile(source, "@Chorus/Orion")
-		if not chunk then
-			error(compileError or "A fonte da Orion não pôde ser compilada.")
-		end
+		if type(source) ~= "string" or source == "" then error("A fonte da Orion está vazia ou inválida.") end
+		source = patchSource(source); local chunk, compileError = API:Compile(source, "@Chorus/Orion")
+		if not chunk then error(compileError or "A fonte da Orion não pôde ser compilada.") end
 		return chunk()
 	end)
-	if not ok or type(result) ~= "table" then
-		cleanupOrionGui()
-		error("Falha ao carregar a Orion: " .. tostring(result), 0)
-	end
+	if not ok or type(result) ~= "table" then cleanupOrionGui(); error("Falha ao carregar a Orion: " .. tostring(result), 0) end
 	for _, methodName in ipairs(REQUIRED_API) do
-		if type(result[methodName]) ~= "function" then
-			cleanupOrionGui()
-			error("A fonte carregada da Orion não oferece o método " .. methodName .. ".", 0)
-		end
+		if type(result[methodName]) ~= "function" then cleanupOrionGui(); error("A fonte carregada da Orion não oferece o método " .. methodName .. ".", 0) end
 	end
 
 	return result

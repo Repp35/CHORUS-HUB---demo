@@ -127,8 +127,8 @@ return function(API)
 		for _, marker in pairs(self.PlayerMarkers) do
 			destroyMarker(marker)
 		end
-		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers); table.clear(self.GunMotion)
-		local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
+		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers)
+		table.clear(self.GunMotion); local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
 		if oldIndicators then destroySafely(oldIndicators) end
 	end
 
@@ -142,8 +142,7 @@ return function(API)
 			local roleData = self.RoleData or {}
 			for playerName, profile in pairs(changes) do
 				if type(playerName) == "string" and type(profile) == "table" then
-					roleData[playerName] = profile
-					local target = Services.Players:FindFirstChild(playerName)
+					roleData[playerName] = profile; local target = Services.Players:FindFirstChild(playerName)
 					if profile.Dead == true or profile.Killed == true then
 						if target then self.LastKnownRoles[target] = nil end
 					elseif type(profile.Role) == "string" then
@@ -151,8 +150,7 @@ return function(API)
 					end
 				end
 			end
-			self.RoleData = roleData; self.RoleDataAt = os.clock()
-			self:ScheduleRepair()
+			self.RoleData = roleData; self.RoleDataAt = os.clock(); self:ScheduleRepair()
 		end)
 	end
 	function ESP:GetRoleData()
@@ -184,8 +182,8 @@ return function(API)
 		}
 	end
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
-		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true
-		local showIdentity = self.ShowIdentity == true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
+		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true; local showIdentity = self.ShowIdentity == true and categoryEnabled
+		local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
 		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local offsetY = 0
 		local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
@@ -202,9 +200,7 @@ return function(API)
 		if enabled then return true end
 		if filter == "Murderer" or filter == "Sheriff" or filter == "Innocent" then
 			for target, marker in pairs(self.PlayerMarkers) do
-				if marker.Category == filter then
-					destroyMarker(marker); self.PlayerMarkers[target] = nil
-				end
+				if marker.Category == filter then destroyMarker(marker); self.PlayerMarkers[target] = nil end
 			end
 		elseif filter == "CandyCoin" then
 			self:ClearMap(self.CoinMarkers)
@@ -214,8 +210,7 @@ return function(API)
 		return true
 	end
 	function ESP:SetShowSelf(enabled)
-		self.ShowSelf = enabled == true
-		self.Filters.Self = self.ShowSelf
+		self.ShowSelf = enabled == true; self.Filters.Self = self.ShowSelf
 		if not self.ShowSelf then
 			local marker = self.PlayerMarkers[Player]
 			if marker then destroyMarker(marker); self.PlayerMarkers[Player] = nil end
@@ -231,8 +226,7 @@ return function(API)
 			if isSelf and not self.ShowSelf then continue end
 			local profile = roleData and roleData[target.Name]; local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local root = character and character:FindFirstChild("HumanoidRootPart"); local aliveAttribute = target:GetAttribute("Alive")
-			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
-			local worldAvailable = character
+			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true); local worldAvailable = character
 				and character:IsDescendantOf(Workspace)
 				and humanoid
 				and humanoid.Health > 0
@@ -241,17 +235,17 @@ return function(API)
 			if not worldAvailable then self.LastKnownRoles[target] = nil; continue end
 			local roleActive = inMatch == true and aliveAttribute == true and not profileSaysDead
 			if profileSaysDead then self.LastKnownRoles[target] = nil end
-			local role = roleActive and (type(profile) == "table" and profile.Role or self.LastKnownRoles[target]) or nil
+			local role = roleActive and (type(profile) == "table" and profile.Role or self.LastKnownRoles[target])
+				or nil
 			if roleActive and type(profile) == "table" and type(profile.Role) == "string" then self.LastKnownRoles[target] = profile.Role end
-			local roleCategory = getRoleCategory(role); local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil
-			local category = isSelf and "Self" or roleCategory or "Player"
-			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você") or roleLabel or "Sem papel"
+			local roleCategory = getRoleCategory(role); local roleLabel = type(role) == "string" and (getRoleLabel(role) or role) or nil; local category = isSelf and "Self" or roleCategory or "Player"
+			local identity = isSelf and (roleLabel and ("Você · " .. roleLabel) or "Você")
+				or roleLabel
+				or "Sem papel"
 			if category and identity and self.Filters[category] == true and worldAvailable then
-				keepWorld[target] = true
-				local colorCategory = isSelf and (roleCategory or "Player") or category
-				local color = self.Colors[colorCategory]
-				local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]
-				local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
+				keepWorld[target] = true; local colorCategory = isSelf and (roleCategory or "Player") or category; local color = self.Colors[colorCategory]
+				local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]; local head = character:FindFirstChild("Head")
+				local nameAdornee = head and head:IsA("BasePart") and head or root
 				if
 					not marker
 					or marker.Character ~= character
@@ -263,10 +257,7 @@ return function(API)
 					if marker then destroyMarker(marker) end
 					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
-				marker.Category = category
-				marker.ColorCategory = colorCategory
-				marker.Role = roleCategory and role or nil
-				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
+				marker.Category = category; marker.ColorCategory = colorCategory; marker.Role = roleCategory and role or nil; self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
 				marker.Highlight.FillColor = color
 				marker.Highlight.FillTransparency = self.FillTransparency
 				marker.Highlight.OutlineColor = color
@@ -325,13 +316,9 @@ return function(API)
 	-- GunMarkers
 	local function addGunPart(gunParts, instance, heldRoots)
 		local part
-		if instance:IsA("BasePart") and instance:IsDescendantOf(Services.Workspace) then
-			part = instance
-		elseif instance:IsA("Model") and instance:IsDescendantOf(Services.Workspace) then
-			part = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
-		elseif instance:IsDescendantOf(Workspace) then
-			part = instance:FindFirstChildWhichIsA("BasePart", true)
-		end
+		if instance:IsA("BasePart") and instance:IsDescendantOf(Services.Workspace) then part = instance
+		elseif instance:IsA("Model") and instance:IsDescendantOf(Services.Workspace) then part = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
+		elseif instance:IsDescendantOf(Workspace) then part = instance:FindFirstChildWhichIsA("BasePart", true) end
 		if not part or not part:IsDescendantOf(Workspace) then return end
 		local ancestor = part
 		while ancestor and ancestor ~= Workspace do
@@ -342,25 +329,17 @@ return function(API)
 	end
 	local function isGunStationary(part)
 		if not part or not part.Parent or not part:IsDescendantOf(Workspace) then return false end
-		local now = os.clock()
-		local position = part.Position
+		local now = os.clock(); local position = part.Position
 		local ok, velocity = pcall(function() return part.AssemblyLinearVelocity end)
 		if not ok or not Util.IsFiniteVector3(position) or not Util.IsFiniteVector3(velocity) then return false end
 		local motion = ESP.GunMotion[part]
-		if not motion then
-			ESP.GunMotion[part] = { Position = position, At = now, StillSince = now }
-			return false
-		end
-		local elapsed = math.max(now - motion.At, 1 / 240)
-		local measuredSpeed = (position - motion.Position).Magnitude / elapsed
+		if not motion then ESP.GunMotion[part] = { Position = position, At = now, StillSince = now }; return false end
+		local elapsed = math.max(now - motion.At, 1 / 240); local measuredSpeed = (position - motion.Position).Magnitude / elapsed
 		if velocity.Magnitude > 1.5 or measuredSpeed > 1.5 then motion.StillSince = now end
-		motion.Position = position
-		motion.At = now
-		return now - motion.StillSince >= 0.2
+		motion.Position = position; motion.At = now; return now - motion.StillSince >= 0.2
 	end
 	function ESP:RefreshGuns()
-		local gunParts = {}
-		local visibleGunParts = {}
+		local gunParts = {}; local visibleGunParts = {}
 		if self.Filters.Gun then
 			local heldRoots = {}
 			for _, target in ipairs(Services.Players:GetPlayers()) do
@@ -375,8 +354,7 @@ return function(API)
 		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for part in pairs(gunParts) do
 			if not isGunStationary(part) then continue end
-			visibleGunParts[part] = true
-			local marker = self.GunMarkers[part]
+			visibleGunParts[part] = true; local marker = self.GunMarkers[part]
 			if not marker or not marker.Gui.Parent or not marker.Highlight.Parent then
 				if marker then destroyMarker(marker) end
 				local gui = createBillboard("ChorusGunName", part, part); gui.StudsOffset = Vector3.new(0, part.Size.Y * 0.5 + 0.45, 0)
@@ -401,10 +379,10 @@ return function(API)
 
 	-- Refresh
 	function ESP:Refresh()
-		local inMatch, _, container = MatchService:GetRoundContext()
-		self.InRound = inMatch == true
+		local inMatch, _, container = MatchService:GetRoundContext(); self.InRound = inMatch == true
 		if not inMatch then self.RoleData = nil; self.RoleDataAt = 0; table.clear(self.LastKnownRoles) end
-		local needsRoleData = inMatch and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
+		local needsRoleData = inMatch
+			and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
 		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
@@ -421,10 +399,7 @@ return function(API)
 		end)
 	end
 	local function reapplyLabel(label)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
-		label.TextTransparency = 0
-		label.TextStrokeColor3 = Color3.new(0, 0, 0)
+		label.BackgroundTransparency = 1; label.Font = Enum.Font.GothamBold; label.TextTransparency = 0; label.TextStrokeColor3 = Color3.new(0, 0, 0)
 		label.TextStrokeTransparency = 0
 	end
 	local function markerNeedsRepair(marker, includeUsername)
@@ -435,18 +410,10 @@ return function(API)
 	end
 	function ESP:ReapplyMarkers()
 		if not self.Enabled or Runtime.ShuttingDown then return end
-		local needsRepair = false
-		local localCharacter = Player.Character
-		local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
+		local needsRepair = false; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for target, marker in pairs(self.PlayerMarkers) do
-			if not marker.Category or self.Filters[marker.Category] ~= true then
-				destroyMarker(marker)
-				self.PlayerMarkers[target] = nil
-				continue
-			end
-			local character = target.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			local profile = self.RoleData and self.RoleData[target.Name]
+			if not marker.Category or self.Filters[marker.Category] ~= true then destroyMarker(marker); self.PlayerMarkers[target] = nil; continue end
+			local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local profile = self.RoleData and self.RoleData[target.Name]
 			local profileSaysDead = type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
 			if
 				not character
@@ -456,10 +423,7 @@ return function(API)
 				or (marker.Role and (target:GetAttribute("Alive") ~= true or profileSaysDead))
 			then
 				if profileSaysDead then self.LastKnownRoles[target] = nil end
-				destroyMarker(marker)
-				self.PlayerMarkers[target] = nil
-				self:ScheduleRepair()
-				continue
+				destroyMarker(marker); self.PlayerMarkers[target] = nil; self:ScheduleRepair(); continue
 			end
 			if
 				markerNeedsRepair(marker, true)
@@ -470,30 +434,17 @@ return function(API)
 				or not marker.NameAdornee
 				or not marker.NameAdornee.Parent
 			then
-				needsRepair = true
-				continue
+				needsRepair = true; continue
 			end
 			local color = self.Colors[marker.ColorCategory or marker.Category]
-			if not color then
-				needsRepair = true
-				continue
-			end
-			local highlight = marker.Highlight
-			highlight.Adornee = marker.Character
-			highlight.Parent = marker.Character
-			highlight.Enabled = true
+			if not color then needsRepair = true; continue end
+			local highlight = marker.Highlight; highlight.Adornee = marker.Character; highlight.Parent = marker.Character; highlight.Enabled = true
 			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 			highlight.FillColor = color
 			highlight.FillTransparency = self.FillTransparency
 			highlight.OutlineColor = color
-			highlight.OutlineTransparency = self.OutlineTransparency
-			local gui = marker.Gui
-			gui.Adornee = marker.NameAdornee
-			gui.Parent = marker.Root
-			gui.AlwaysOnTop = true
-			gui.LightInfluence = 0
-			gui.MaxDistance = 0
-			gui.StudsOffset = Vector3.new(0, marker.NameAdornee.Size.Y * 0.5 + 0.55, 0)
+			highlight.OutlineTransparency = self.OutlineTransparency; local gui = marker.Gui; gui.Adornee = marker.NameAdornee; gui.Parent = marker.Root
+			gui.AlwaysOnTop = true; gui.LightInfluence = 0; gui.MaxDistance = 0; gui.StudsOffset = Vector3.new(0, marker.NameAdornee.Size.Y * 0.5 + 0.55, 0)
 			self:UpdatePlayerLabels(
 				marker,
 				marker.UsernameLabel.Text,
@@ -501,72 +452,31 @@ return function(API)
 				color,
 				getDistance(localRoot, marker.Root, self.NameScaleFarDistance)
 			)
-			reapplyLabel(marker.IdentityLabel)
-			reapplyLabel(marker.UsernameLabel)
+			reapplyLabel(marker.IdentityLabel); reapplyLabel(marker.UsernameLabel)
 		end
 		for part, marker in pairs(self.CoinMarkers) do
-			if markerNeedsRepair(marker, false) or not part.Parent then
-				needsRepair = true
-				continue
-			end
-			local adornee = getCoinVisualAdornee(part)
-			local labelAdornee = getObjectLabelAdornee(adornee, part)
-			local highlight = marker.Highlight
-			highlight.Adornee = adornee
-			highlight.Parent = adornee
-			highlight.Enabled = true
-			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-			highlight.FillColor = self.Colors.CandyCoin
-			highlight.FillTransparency = self.FillTransparency
-			highlight.OutlineColor = self.Colors.CandyCoin
-			highlight.OutlineTransparency = self.OutlineTransparency
-			local gui = marker.Gui
-			gui.Adornee = labelAdornee
-			gui.Parent = labelAdornee
-			gui.AlwaysOnTop = true
-			gui.LightInfluence = 0
-			gui.MaxDistance = 0
-			gui.StudsOffset = Vector3.new(0, labelAdornee.Size.Y * 0.5 + 0.45, 0)
-			marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.CandyCoin == true
-			marker.IdentityLabel.TextColor3 = getLabelColor(self.Colors.CandyCoin)
-			marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-			marker.IdentityLabel.TextStrokeTransparency = 0
-			marker.IdentityLabel.TextTransparency = 0
-			marker.IdentityLabel.Size = UDim2.fromScale(1, 1)
-			gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8)
-			gui.Enabled = marker.IdentityLabel.Visible
-			reapplyLabel(marker.IdentityLabel)
+			if markerNeedsRepair(marker, false) or not part.Parent then needsRepair = true; continue end
+			local adornee = getCoinVisualAdornee(part); local labelAdornee = getObjectLabelAdornee(adornee, part); local highlight = marker.Highlight; highlight.Adornee = adornee
+			highlight.Parent = adornee; highlight.Enabled = true; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; highlight.FillColor = self.Colors.CandyCoin
+			highlight.FillTransparency = self.FillTransparency; highlight.OutlineColor = self.Colors.CandyCoin; highlight.OutlineTransparency = self.OutlineTransparency; local gui = marker.Gui
+			gui.Adornee = labelAdornee; gui.Parent = labelAdornee; gui.AlwaysOnTop = true; gui.LightInfluence = 0
+			gui.MaxDistance = 0; gui.StudsOffset = Vector3.new(0, labelAdornee.Size.Y * 0.5 + 0.45, 0); marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.CandyCoin == true
+			marker.IdentityLabel.TextColor3 = getLabelColor(self.Colors.CandyCoin); marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0); marker.IdentityLabel.TextStrokeTransparency = 0
+			marker.IdentityLabel.TextTransparency = 0; marker.IdentityLabel.Size = UDim2.fromScale(1, 1); gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8)
+			gui.Enabled = marker.IdentityLabel.Visible; reapplyLabel(marker.IdentityLabel)
 		end
 		for part, marker in pairs(self.GunMarkers) do
-			if markerNeedsRepair(marker, false) or not part.Parent then
-				needsRepair = true
-				continue
-			end
-			local color = self.Colors.Gun
-			local highlight = marker.Highlight
-			highlight.Adornee = part
-			highlight.Parent = part
-			highlight.Enabled = true
-			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			if markerNeedsRepair(marker, false) or not part.Parent then needsRepair = true; continue end
+			local color = self.Colors.Gun; local highlight = marker.Highlight; highlight.Adornee = part; highlight.Parent = part
+			highlight.Enabled = true; highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 			highlight.FillColor = color
 			highlight.FillTransparency = self.FillTransparency
 			highlight.OutlineColor = color
-			highlight.OutlineTransparency = self.OutlineTransparency
-			local gui = marker.Gui
-			gui.Adornee = part
-			gui.Parent = part
-			gui.AlwaysOnTop = true
-			gui.LightInfluence = 0
-			gui.MaxDistance = 0
-			gui.StudsOffset = Vector3.new(0, part.Size.Y * 0.5 + 0.45, 0)
-			marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.Gun == true
-			marker.IdentityLabel.TextColor3 = getLabelColor(color)
-			marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-			marker.IdentityLabel.TextStrokeTransparency = 0
-			marker.IdentityLabel.TextTransparency = 0
-			marker.IdentityLabel.Size = UDim2.fromScale(1, 1)
-			gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8)
-			gui.Enabled = marker.IdentityLabel.Visible
+			highlight.OutlineTransparency = self.OutlineTransparency; local gui = marker.Gui; gui.Adornee = part; gui.Parent = part
+			gui.AlwaysOnTop = true; gui.LightInfluence = 0; gui.MaxDistance = 0; gui.StudsOffset = Vector3.new(0, part.Size.Y * 0.5 + 0.45, 0)
+			marker.IdentityLabel.Visible = self.ShowIdentity == true and self.Filters.Gun == true; marker.IdentityLabel.TextColor3 = getLabelColor(color)
+			marker.IdentityLabel.TextStrokeColor3 = Color3.new(0, 0, 0); marker.IdentityLabel.TextStrokeTransparency = 0; marker.IdentityLabel.TextTransparency = 0
+			marker.IdentityLabel.Size = UDim2.fromScale(1, 1); gui.Size = UDim2.fromOffset(220, marker.IdentityLabel.TextSize + 8); gui.Enabled = marker.IdentityLabel.Visible
 			reapplyLabel(marker.IdentityLabel)
 		end
 		if needsRepair then self:ScheduleRepair() end
@@ -576,9 +486,15 @@ return function(API)
 		if marker.Gui and marker.Gui.Parent then marker.Gui.Enabled = false end
 	end
 	function ESP:DisableMarkersForFrame()
-		for _, marker in pairs(self.PlayerMarkers) do disableMarkerForFrame(marker) end
-		for _, marker in pairs(self.CoinMarkers) do disableMarkerForFrame(marker) end
-		for _, marker in pairs(self.GunMarkers) do disableMarkerForFrame(marker) end
+		for _, marker in pairs(self.PlayerMarkers) do
+			disableMarkerForFrame(marker)
+		end
+		for _, marker in pairs(self.CoinMarkers) do
+			disableMarkerForFrame(marker)
+		end
+		for _, marker in pairs(self.GunMarkers) do
+			disableMarkerForFrame(marker)
+		end
 	end
 	function ESP:ReportError(context, errorMessage)
 		local now = os.clock()
@@ -594,10 +510,7 @@ return function(API)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
 		self.RenderConnection = Runtime:Track(Services.RunService.RenderStepped:Connect(function()
 			local ok, errorMessage = xpcall(function()
-				self:DisableMarkersForFrame()
-				self:RefreshPlayers(self.RoleData, self.InRound)
-				self:RefreshGuns()
-				self:ReapplyMarkers()
+				self:DisableMarkersForFrame(); self:RefreshPlayers(self.RoleData, self.InRound); self:RefreshGuns(); self:ReapplyMarkers()
 			end, Util.FormatError)
 			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
 		end))

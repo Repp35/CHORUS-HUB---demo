@@ -7,9 +7,8 @@ return function()
 		Author = "Delta",
 		Version = "1.0.0",
 	}
-	local function buildDisplayName(info)
-		return string.format("%s | v%s", info.Name, info.Version)
-	end
+
+	local function buildDisplayName(info) return string.format("%s | v%s", info.Name, info.Version) end
 	local function buildIntroText(info)
 		return table.concat({
 			info.Name,

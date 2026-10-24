@@ -2,25 +2,22 @@
 
 return function(API)
 	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
-	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player; local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
-	local Importance = ControlRegistry.Importance
-	local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip; local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed
-	local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam; local AutoGunPickup = API.Features.AutoGunPickup
+	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player
+	local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Importance = ControlRegistry.Importance; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip
+	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
+	local AutoGunPickup = API.Features.AutoGunPickup
 
 	-- PlayerTeleport
 	local function notifyTeleport(content)
-		if type(OrionLib.MakeNotification) == "function" then
-			pcall(OrionLib.MakeNotification, OrionLib, { Name = "Teleport", Content = content, Time = 4 })
-		end
+		if type(OrionLib.MakeNotification) == "function" then pcall(OrionLib.MakeNotification, OrionLib, { Name = "Teleport", Content = content, Time = 4 }) end
 	end
 	local function findAliveRoleTarget(roleData, wantedRole, allowHero)
 		for playerName, profile in pairs(roleData) do
 			local roleMatches = type(profile) == "table"
 				and (profile.Role == wantedRole or allowHero and wantedRole == "Sheriff" and profile.Role == "Hero")
-			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil
-			local character = target and target.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil; local character = target and target.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
 			if
 				roleMatches
 				and target
@@ -40,9 +37,7 @@ return function(API)
 		return nil
 	end
 	local function teleportToPlayer(target, targetRoot)
-		local inRound = MatchService:GetRoundContext()
-		local character = Player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local inRound = MatchService:GetRoundContext(); local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if
 			not inRound
@@ -53,25 +48,19 @@ return function(API)
 			or not root:IsA("BasePart")
 			or not character:IsDescendantOf(Services.Workspace)
 		then
-			notifyTeleport("Entre em uma partida e esteja vivo para usar o teleporte.")
-			return false
+			notifyTeleport("Entre em uma partida e esteja vivo para usar o teleporte."); return false
 		end
-		if not target or not targetRoot or not targetRoot:IsDescendantOf(Services.Workspace) then
-			notifyTeleport("Não existe outro jogador vivo com esse papel para teleportar.")
-			return false
-		end
+		if not target or not targetRoot or not targetRoot:IsDescendantOf(Services.Workspace) then notifyTeleport("Não existe outro jogador vivo com esse papel para teleportar."); return false end
 		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
 		if not ok then notifyTeleport("Não foi possível teleportar até esse jogador."); return false end
-		notifyTeleport("Teleportado até " .. target.DisplayName .. ".")
-		return true
+		notifyTeleport("Teleportado até " .. target.DisplayName .. "."); return true
 	end
 	local function teleportToRole(role, allowHero)
 		local inRound = MatchService:GetRoundContext()
 		if not inRound then notifyTeleport("A partida ainda não começou."); return end
 		local roleData = MatchService:GetPlayerData()
 		if not roleData then notifyTeleport("Não foi possível consultar os papéis desta partida."); return end
-		local target, targetRoot = findAliveRoleTarget(roleData, role, allowHero)
-		teleportToPlayer(target, targetRoot)
+		local target, targetRoot = findAliveRoleTarget(roleData, role, allowHero); teleportToPlayer(target, targetRoot)
 	end
 	local function teleportToFarthestInnocent()
 		local inRound = MatchService:GetRoundContext()
@@ -84,9 +73,7 @@ return function(API)
 		for playerName, profile in pairs(roleData) do
 			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil
 			if target and target ~= Player and type(profile) == "table" and profile.Role == "Innocent" then
-				local character = target.Character
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				local root = character and character:FindFirstChild("HumanoidRootPart")
+				local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
 				if
 					target:GetAttribute("Alive") == true
 					and profile.Dead ~= true
@@ -98,9 +85,7 @@ return function(API)
 					and character:IsDescendantOf(Services.Workspace)
 				then
 					local distance = (root.Position - murdererRoot.Position).Magnitude
-					if not farthestDistance or distance > farthestDistance then
-						farthestTarget, farthestRoot, farthestDistance = target, root, distance
-					end
+					if not farthestDistance or distance > farthestDistance then farthestTarget, farthestRoot, farthestDistance = target, root, distance end
 				end
 			end
 		end
@@ -397,7 +382,10 @@ return function(API)
 				Importance = Importance.High,
 				SectionKey = "TeleportSection",
 				Type = "Button",
-				Config = { Name = "Teleportar no inocente mais longe do Murderer", Callback = teleportToFarthestInnocent },
+				Config = {
+					Name = "Teleportar no inocente mais longe do Murderer",
+					Callback = teleportToFarthestInnocent,
+				},
 			},
 			{
 				Key = "TeleportSheriff",
@@ -422,8 +410,7 @@ return function(API)
 				Config = {
 					Name = "Reset Player (Kill)",
 					Callback = function()
-						local character = Player.Character
-						local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+						local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 						if humanoid and humanoid.Health > 0 then pcall(function() humanoid.Health = 0 end) end
 					end,
 				},
@@ -432,8 +419,18 @@ return function(API)
 		Settings = {
 			{ Key = "ScriptInfoSection", Type = "Section", Config = { Name = "Informações do script" } },
 			{ Key = "ScriptInfoName", SectionKey = "ScriptInfoSection", Type = "Label", Text = Config.ScriptInfo.Name },
-			{ Key = "ScriptInfoAuthor", SectionKey = "ScriptInfoSection", Type = "Label", Text = "Autor: " .. Config.ScriptInfo.Author },
-			{ Key = "ScriptInfoVersion", SectionKey = "ScriptInfoSection", Type = "Label", Text = "Versão: " .. Config.ScriptInfo.Version },
+			{
+				Key = "ScriptInfoAuthor",
+				SectionKey = "ScriptInfoSection",
+				Type = "Label",
+				Text = "Autor: " .. Config.ScriptInfo.Author,
+			},
+			{
+				Key = "ScriptInfoVersion",
+				SectionKey = "ScriptInfoSection",
+				Type = "Label",
+				Text = "Versão: " .. Config.ScriptInfo.Version,
+			},
 			{ Key = "ConfigurationSection", Type = "Section", Config = { Name = "Configuração" } },
 			{
 				Key = "ResetSavedConfig",
@@ -500,15 +497,12 @@ return function(API)
 		return false
 	end
 	function Settings:ResetSavedConfiguration()
-		local fileCleared = clearSavedConfigFile()
-		local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
+		local fileCleared = clearSavedConfigFile(); local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
 		for _, parentPass in ipairs({ false, true }) do
 			for _, tabName in ipairs(tabOrder) do
 				local registry = self.Registries and self.Registries[tabName]
 				for _, node in ipairs(registry and registry.Items or {}) do
-					local definition = node.Definition
-					local control = node.Control
-					local default = definition.Config and definition.Config.Default
+					local definition = node.Definition; local control = node.Control; local default = definition.Config and definition.Config.Default
 					if
 						default ~= nil
 						and control
@@ -520,12 +514,9 @@ return function(API)
 				end
 			end
 		end
-		local content = fileCleared
-			and "As opções foram restauradas para os valores padrão."
+		local content = fileCleared and "As opções foram restauradas para os valores padrão."
 			or "As opções foram restauradas nesta sessão, mas o executor não permitiu limpar o arquivo salvo."
-		if type(OrionLib.MakeNotification) == "function" then
-			pcall(OrionLib.MakeNotification, OrionLib, { Name = "Settings", Content = content, Time = 4 })
-		end
+		if type(OrionLib.MakeNotification) == "function" then pcall(OrionLib.MakeNotification, OrionLib, { Name = "Settings", Content = content, Time = 4 }) end
 		return fileCleared
 	end
 
@@ -543,16 +534,10 @@ return function(API)
 			for _, tabName in ipairs(tabOrder) do
 				local registry = registries[tabName]
 				for _, node in ipairs(registry.Items) do
-					local definition = node.Definition
-					local callback = definition.Config and definition.Config.Callback
+					local definition = node.Definition; local callback = definition.Config and definition.Config.Callback
 					local isStateControl = definition.Type == "Toggle" or definition.Type == "Slider"
-					if
-						isStateControl
-						and type(callback) == "function"
-						and (#node.Children > 0) == parentPass
-					then
-						local value = node.Control and node.Control.Value
-						local applied, applyError = pcall(callback, value)
+					if isStateControl and type(callback) == "function" and (#node.Children > 0) == parentPass then
+						local value = node.Control and node.Control.Value; local applied, applyError = pcall(callback, value)
 						if not applied then warn("[Chorus MM2] Não foi possível aplicar " .. node.Key .. ": " .. tostring(applyError)) end
 					end
 				end

@@ -16,9 +16,7 @@ return function(API)
 		for _, map in ipairs(Services.Workspace:GetChildren()) do
 			if map:IsA("Model") and map:GetAttribute("MapID") ~= nil then
 				local container = map:FindFirstChild("CoinContainer")
-				if not container or not (container:IsA("Folder") or container:IsA("Model")) then
-					container = nil
-				end
+				if not container or not (container:IsA("Folder") or container:IsA("Model")) then container = nil end
 				return true, map, container
 			end
 		end
@@ -33,8 +31,7 @@ return function(API)
 	function MatchService:GetLocalRole()
 		local data = self:GetPlayerData()
 		if not data then return nil end
-		local profile = data[Player.Name]
-		return type(profile) == "table" and type(profile.Role) == "string" and profile.Role or nil
+		local profile = data[Player.Name]; return type(profile) == "table" and type(profile.Role) == "string" and profile.Role or nil
 	end
 
 	return MatchService
