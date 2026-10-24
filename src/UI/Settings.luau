@@ -430,6 +430,10 @@ return function(API)
 			},
 		},
 		Settings = {
+			{ Key = "ScriptInfoSection", Type = "Section", Config = { Name = "Informações do script" } },
+			{ Key = "ScriptInfoName", SectionKey = "ScriptInfoSection", Type = "Label", Text = Config.ScriptInfo.Name },
+			{ Key = "ScriptInfoAuthor", SectionKey = "ScriptInfoSection", Type = "Label", Text = "Autor: " .. Config.ScriptInfo.Author },
+			{ Key = "ScriptInfoVersion", SectionKey = "ScriptInfoSection", Type = "Label", Text = "Versão: " .. Config.ScriptInfo.Version },
 			{ Key = "ConfigurationSection", Type = "Section", Config = { Name = "Configuração" } },
 			{
 				Key = "ResetSavedConfig",

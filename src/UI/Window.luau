@@ -211,6 +211,7 @@ return function(API)
 			SaveConfig = canUseConfigStorage(),
 			HidePremium = Config.HidePremium,
 			IntroEnabled = Config.IntroEnabled,
+			IntroText = Config.IntroText,
 			CloseCallback = function()
 				Runtime:Shutdown()
 			end,

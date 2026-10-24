@@ -429,7 +429,6 @@ local function bootstrap()
 end
 
 local bootstrapThread = task.defer(function()
-	print("[Chorus Loader] Executor: " .. ExecutorName)
 	local ok, errorMessage = xpcall(bootstrap, formatError)
 	if not ok then
 		if API.Runtime and type(API.Runtime.Shutdown) == "function" then
@@ -438,6 +437,13 @@ local bootstrapThread = task.defer(function()
 		clearAPI()
 		if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then
 			warn("[Chorus Loader] " .. tostring(errorMessage))
+		end
+	else
+		local scriptInfo = API.Config and API.Config.ScriptInfo
+		if type(scriptInfo) == "table" then
+			print(string.format("[%s | v%s] Autor: %s | Executor: %s", scriptInfo.Name, scriptInfo.Version, scriptInfo.Author, ExecutorName))
+		else
+			print("[Chorus Loader] Executor: " .. ExecutorName)
 		end
 	end
 	if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then
