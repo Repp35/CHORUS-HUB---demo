@@ -1,16 +1,15 @@
 -- [[ shootmurder ]]
 
 return function(API)
-	local Players = API.Roblox.Players; local TweenService = API.Roblox.TweenService; local Workspace = API.Roblox.Workspace; local Player = API.Player
-	local Runtime = API.Runtime; local MatchService = API.Services.Match; local Randomizer = Random.new(); local SHOT_COOLDOWN = 0.6
-	local ROLE_REFRESH_INTERVAL = 0.45; local WORK_INTERVAL = 0.1; local FADE_TIME = 0.16; local EFFECT_TIME = 0.2
-	local GUI_NAME = "ChorusManualShootMurder"
+	local Players = API.Roblox.Players; local Services = API.Roblox; local TweenService = API.Roblox.TweenService; local Workspace = API.Roblox.Workspace
+	local Player = API.Player; local Runtime = API.Runtime; local MatchService = API.Services.Match; local Randomizer = Random.new()
+	local SHOT_COOLDOWN = 0.6; local ROLE_REFRESH_INTERVAL = 0.45; local WORK_INTERVAL = 0.1; local FADE_TIME = 0.16
+	local EFFECT_TIME = 0.2; local GUI_NAME = "ChorusManualShootMurder"
 	local ShootMurder = {
 		ManualEnabled = false,
 		AutoEnabled = false,
 		ManualAccuracy = 100,
 		AutoAccuracy = 100,
-		AllowOffscreen = true,
 		WaitForKnife = false,
 		RoleData = nil,
 		RoleDataAt = 0,
@@ -116,9 +115,9 @@ return function(API)
 		return nil
 	end
 	function ShootMurder:GetClearAim(character, root, gun, localCharacter)
-		local camera = Workspace.CurrentCamera; local originAttachment = root:FindFirstChild("GunRaycastAttachment")
-		if not camera or not originAttachment or not originAttachment:IsA("Attachment") then return nil end
-		local gunOrigin = originAttachment.WorldPosition; local viewportSize = camera.ViewportSize; local _, _, coinContainer = MatchService:GetRoundContext(); local ignored = { localCharacter, gun }
+		local originAttachment = root:FindFirstChild("GunRaycastAttachment")
+		if not originAttachment or not originAttachment:IsA("Attachment") then return nil end
+		local gunOrigin = originAttachment.WorldPosition; local _, _, coinContainer = MatchService:GetRoundContext(); local ignored = { localCharacter, gun }
 		if coinContainer then table.insert(ignored, coinContainer) end
 		for _, instance in ipairs(Services.CollectionService:GetTagged("WeaponPassthrough")) do
 			table.insert(ignored, instance)
@@ -147,21 +146,13 @@ return function(API)
 		if head and head:IsA("BasePart") then table.insert(candidates, 2, head.Position) end
 		local localHead = localCharacter:FindFirstChild("Head")
 		for _, point in ipairs(candidates) do
-			local viewportPoint, onScreen = camera:WorldToViewportPoint(point); local visibleOnScreen = onScreen
-				and viewportPoint.Z > 0
-				and viewportPoint.X >= 0
-				and viewportPoint.Y >= 0
-				and viewportPoint.X <= viewportSize.X
-				and viewportPoint.Y <= viewportSize.Y
-			if self.AllowOffscreen or visibleOnScreen then
-				local ray = point - gunOrigin; local across = Vector3.new(-ray.Z, 0, ray.X); across = across.Magnitude > 0.01 and across.Unit * 0.9 or Vector3.zero
-				local function hitsTarget(from, to)
-					local hit = weaponRay(from, to); return hit ~= nil and hit.Instance:IsDescendantOf(character), hit and hit.Position
-				end
-				local centered, hitPosition = hitsTarget(gunOrigin, point); local left = centered and hitsTarget(gunOrigin + across, point)
-				local right = left and hitsTarget(gunOrigin - across, point); local eyeClear = not localHead or hitsTarget(localHead.Position, point)
-				if centered and left and right and eyeClear then return hitPosition end
+			local ray = point - gunOrigin; local across = Vector3.new(-ray.Z, 0, ray.X); across = across.Magnitude > 0.01 and across.Unit * 0.9 or Vector3.zero
+			local function hitsTarget(from, to)
+				local hit = weaponRay(from, to); return hit ~= nil and hit.Instance:IsDescendantOf(character), hit and hit.Position
 			end
+			local centered, hitPosition = hitsTarget(gunOrigin, point); local left = centered and hitsTarget(gunOrigin + across, point); local right = left and hitsTarget(gunOrigin - across, point)
+			local eyeClear = not localHead or hitsTarget(localHead.Position, point)
+			if centered and left and right and eyeClear then return hitPosition end
 		end
 		return nil
 	end
@@ -295,7 +286,6 @@ return function(API)
 	function ShootMurder:SetWaitForKnife(enabled) self.WaitForKnife = enabled == true end
 	function ShootMurder:SetManualAccuracy(value) self.ManualAccuracy = math.clamp(tonumber(value) or 100, 0, 100) end
 	function ShootMurder:SetAutoAccuracy(value) self.AutoAccuracy = math.clamp(tonumber(value) or 100, 0, 100) end
-	function ShootMurder:SetAllowOffscreen(enabled) self.AllowOffscreen = enabled == true end
 	function ShootMurder:Destroy()
 		if self.Destroyed then return end
 		self.Destroyed = true; self.ManualEnabled = false; self.AutoEnabled = false; self:CancelTweens()

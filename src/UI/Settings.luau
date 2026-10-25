@@ -88,19 +88,6 @@ return function(API)
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
 				},
 			},
-			{
-				Key = "ShootMurderOffscreen",
-				Flag = "ShootMurderOffscreen",
-				SectionKey = "ShootMurderSection",
-				Importance = Importance.Normal,
-				Type = "Toggle",
-				Config = {
-					Name = "Silent Aim (acerta fora da tela)",
-					Default = true,
-					Save = true,
-					Callback = function(value) ShootMurder:SetAllowOffscreen(value) end,
-				},
-			},
 			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
 			{
 				Key = "AutoGunPickup",
