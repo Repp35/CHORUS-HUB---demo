@@ -82,6 +82,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Legit",
+					Description = "Aguarda o assassino sacar a faca.",
 					Default = false,
 					Save = true,
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
@@ -562,12 +563,6 @@ return function(API)
 				SectionKey = "ScriptInfoSection",
 				Type = "Label",
 				Text = "Author: " .. Config.ScriptInfo.Author,
-			},
-			{
-				Key = "ScriptInfoVersion",
-				SectionKey = "ScriptInfoSection",
-				Type = "Label",
-				Text = "Version: " .. Config.ScriptInfo.Version,
 			},
 			{ Key = "ConfigurationSection", Type = "Section", Config = { Name = "Configuração" } },
 			{

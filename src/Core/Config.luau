@@ -3,17 +3,15 @@
 -- Configuration
 return function()
 	local ScriptInfo = {
-		Name = "Chorus - MM2 | Delta",
+		Name = "Chorus - MM2",
 		Author = "Delta",
-		Version = "1.0.0",
 	}
 
-	local function buildDisplayName(info) return string.format("%s | v%s", info.Name, info.Version) end
+	local function buildDisplayName(info) return string.format("%s - %s", info.Name, info.Author) end
 	local function buildIntroText(info)
 		return table.concat({
-			info.Name,
+			buildDisplayName(info),
 			"Autor: " .. info.Author,
-			"Versão: " .. info.Version,
 		}, "\n")
 	end
 
