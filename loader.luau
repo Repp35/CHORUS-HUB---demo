@@ -24,28 +24,32 @@ local RUNTIME_KEY = "__ChorusMM2DeltaRuntime"
 local BOOTSTRAP_KEY = "__ChorusMM2DeltaBootstrap"
 local TAB_ICONS = {
 	["Auto Farm"] = {
-		FileName = "autofarm-coin.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1fa99.png",
+		FileName = "tab-autofarm.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/autofarm.png",
+	},
+	Combat = {
+		FileName = "tab-combat.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/combat.png",
 	},
 	Map = {
-		FileName = "map-globe.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f310.png",
+		FileName = "tab-map.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/map.png",
 	},
 	Visuals = {
-		FileName = "visuals-eye.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f441.png",
+		FileName = "tab-visuals.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/visuals.png",
 	},
 	Player = {
-		FileName = "player-user.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f464.png",
+		FileName = "tab-player.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/player.png",
 	},
 	Avisos = {
-		FileName = "alerts-bell.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f514.png",
+		FileName = "tab-alerts.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/alerts.png",
 	},
 	Settings = {
-		FileName = "settings-gear.png",
-		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/2699.png",
+		FileName = "tab-settings.png",
+		Source = "https://raw.githubusercontent.com/Repp35/CHORUS-HUB---demo/main/assets/tabs/settings.png",
 	},
 }
 
