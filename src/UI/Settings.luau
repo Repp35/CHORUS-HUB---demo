@@ -191,6 +191,13 @@ return function(API)
 				Config = { Name = "Teleport to Map", Callback = function() MapTools:TeleportToMap() end },
 			},
 			{
+				Key = "TeleportToLobby",
+				SectionKey = "MapTravelSection",
+				Importance = Importance.High,
+				Type = "Button",
+				Config = { Name = "Teleport to Lobby", Callback = function() MapTools:TeleportToLobby() end },
+			},
+			{
 				Key = "TeleportToMurderer",
 				SectionKey = "MapTravelSection",
 				Type = "Button",

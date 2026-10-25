@@ -107,6 +107,31 @@ return function(API)
 		if not ok then notify("Não foi possível teleportar para o mapa."); return false end
 		allowAntiFlingTeleport(); notify("Teleportado para " .. tostring(map:GetAttribute("MapID")) .. "."); return true
 	end
+	function MapTools:TeleportToLobby()
+		local lobby = Services.Workspace:FindFirstChild("RegularLobby"); local character = getTeleportContext()
+		if not lobby then notify("Não encontrei o lobby."); return false end
+		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
+		local spawn = lobby:FindFirstChildWhichIsA("SpawnLocation", true)
+		if not spawn then
+			for _, name in ipairs({ "LobbySpawn", "Spawn", "SpawnLocation", "SpawnPoint" }) do
+				local candidate = lobby:FindFirstChild(name, true)
+				if candidate and candidate:IsA("BasePart") then spawn = candidate; break end
+			end
+		end
+		local destination
+		if spawn then
+			destination = spawn.CFrame + Vector3.new(0, 3, 0)
+		elseif lobby:IsA("Model") or lobby:IsA("BasePart") then
+			destination = lobby:GetPivot() + Vector3.new(0, 3, 0)
+		else
+			local part = lobby:FindFirstChildWhichIsA("BasePart", true)
+			if part then destination = part.CFrame + Vector3.new(0, 3, 0) end
+		end
+		if not destination then notify("Não encontrei um ponto válido no lobby."); return false end
+		local ok = pcall(function() character:PivotTo(destination) end)
+		if not ok then notify("Não foi possível teleportar para o lobby."); return false end
+		allowAntiFlingTeleport(); notify("Teleportado para o lobby."); return true
+	end
 	function MapTools:FindRoleTarget(role, includeHero)
 		local data = MatchService:GetPlayerData()
 		if not data then return nil end
