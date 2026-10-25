@@ -507,6 +507,21 @@ return function(API)
 		end
 		if needsRepair then self:ScheduleRepair() end
 	end
+	local function hideMarkerForPreRender(marker)
+		if marker.Highlight and marker.Highlight.Parent then marker.Highlight.Enabled = false end
+		if marker.Gui and marker.Gui.Parent then marker.Gui.Enabled = false end
+	end
+	function ESP:HideMarkersForPreRender()
+		for _, marker in pairs(self.PlayerMarkers) do
+			hideMarkerForPreRender(marker)
+		end
+		for _, marker in pairs(self.CoinMarkers) do
+			hideMarkerForPreRender(marker)
+		end
+		for _, marker in pairs(self.GunMarkers) do
+			hideMarkerForPreRender(marker)
+		end
+	end
 	function ESP:ReportError(context, errorMessage)
 		local now = os.clock()
 		if now - self.LastErrorAt < 5 then return end
@@ -519,9 +534,9 @@ return function(API)
 		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
 		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
-		self.RenderConnection = Runtime:Track(Services.RunService.RenderStepped:Connect(function()
+		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
 			local ok, errorMessage = xpcall(function()
-				self:RefreshPlayers(self.RoleData, self.InRound); self:RefreshGuns(); self:ReapplyMarkers()
+				self:HideMarkersForPreRender(); self:RefreshPlayers(self.RoleData, self.InRound); self:RefreshGuns(); self:ReapplyMarkers()
 			end, Util.FormatError)
 			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
 		end))
