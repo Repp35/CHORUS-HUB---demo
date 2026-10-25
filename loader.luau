@@ -27,6 +27,10 @@ local TAB_ICONS = {
 		FileName = "autofarm-coin.png",
 		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1fa99.png",
 	},
+	Map = {
+		FileName = "map-globe.png",
+		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f310.png",
+	},
 	Visuals = {
 		FileName = "visuals-eye.png",
 		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f441.png",
@@ -34,6 +38,10 @@ local TAB_ICONS = {
 	Player = {
 		FileName = "player-user.png",
 		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f464.png",
+	},
+	Avisos = {
+		FileName = "alerts-bell.png",
+		Source = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f514.png",
 	},
 	Settings = {
 		FileName = "settings-gear.png",
