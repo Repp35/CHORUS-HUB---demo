@@ -96,40 +96,49 @@ return function(API)
 	function ShootMurder:GetClearAim(character, root, gun, localCharacter)
 		local camera = Workspace.CurrentCamera; local originAttachment = root:FindFirstChild("GunRaycastAttachment")
 		if not camera or not originAttachment or not originAttachment:IsA("Attachment") then return nil end
-		local gunOrigin = originAttachment.WorldPosition; local cameraOrigin = camera.CFrame.Position; local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { localCharacter, gun }; params.IgnoreWater = true
-		local candidates = {
-			character:FindFirstChild("Head"),
-			character:FindFirstChild("UpperTorso"),
-			character:FindFirstChild("Torso"),
-			root,
-		}
-
-		local viewportSize = camera.ViewportSize
-		for _, candidate in ipairs(candidates) do
-			if candidate and candidate:IsA("BasePart") then
-				local viewportPoint, onScreen = camera:WorldToViewportPoint(candidate.Position)
+		local gunOrigin = originAttachment.WorldPosition; local viewportSize = camera.ViewportSize; local _, _, coinContainer = MatchService:GetRoundContext(); local ignored = { localCharacter, gun }
+		if coinContainer then table.insert(ignored, coinContainer) end
+		for _, instance in ipairs(Services.CollectionService:GetTagged("WeaponPassthrough")) do
+			table.insert(ignored, instance)
+		end
+		local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = ignored; params.IgnoreWater = true
+		local function weaponRay(from, to)
+			local direction = to - from
+			for _ = 1, 24 do
+				local hit = Workspace:Raycast(from, direction, params)
+				if not hit then return nil end
 				if
-					self.AllowOffscreen
-					or (
-						onScreen
-						and viewportPoint.Z > 0
-						and viewportPoint.X >= 0
-						and viewportPoint.Y >= 0
-						and viewportPoint.X <= viewportSize.X
-						and viewportPoint.Y <= viewportSize.Y
-					)
+					not hit.Instance:IsA("BasePart")
+					or hit.Instance.Transparency ~= 1
+					or table.find(ignored, hit.Instance)
 				then
-					local cameraHit = Workspace:Raycast(cameraOrigin, candidate.Position - cameraOrigin, params); local gunHit = Workspace:Raycast(gunOrigin, candidate.Position - gunOrigin, params)
-					if
-						cameraHit
-						and cameraHit.Instance:IsDescendantOf(character)
-						and gunHit
-						and gunHit.Instance:IsDescendantOf(character)
-					then
-						return gunHit.Position
-					end
+					return hit
 				end
+				table.insert(ignored, hit.Instance); params.FilterDescendantsInstances = ignored
+			end
+			return nil
+		end
+		local side = root.Position - gunOrigin; side = Vector3.new(-side.Z, 0, side.X); side = side.Magnitude > 0.01 and side.Unit * 1.1 or Vector3.zero
+		local candidates =
+			{ root.Position, root.Position + Vector3.new(0, 1.3, 0), root.Position + side, root.Position - side }
+		local head = character:FindFirstChild("Head")
+		if head and head:IsA("BasePart") then table.insert(candidates, 2, head.Position) end
+		local localHead = localCharacter:FindFirstChild("Head")
+		for _, point in ipairs(candidates) do
+			local viewportPoint, onScreen = camera:WorldToViewportPoint(point); local visibleOnScreen = onScreen
+				and viewportPoint.Z > 0
+				and viewportPoint.X >= 0
+				and viewportPoint.Y >= 0
+				and viewportPoint.X <= viewportSize.X
+				and viewportPoint.Y <= viewportSize.Y
+			if self.AllowOffscreen or visibleOnScreen then
+				local ray = point - gunOrigin; local across = Vector3.new(-ray.Z, 0, ray.X); across = across.Magnitude > 0.01 and across.Unit * 0.9 or Vector3.zero
+				local function hitsTarget(from, to)
+					local hit = weaponRay(from, to); return hit ~= nil and hit.Instance:IsDescendantOf(character), hit and hit.Position
+				end
+				local centered, hitPosition = hitsTarget(gunOrigin, point); local left = centered and hitsTarget(gunOrigin + across, point)
+				local right = left and hitsTarget(gunOrigin - across, point); local eyeClear = not localHead or hitsTarget(localHead.Position, point)
+				if centered and left and right and eyeClear then return hitPosition end
 			end
 		end
 		return nil
@@ -185,6 +194,7 @@ return function(API)
 				Button = { BackgroundTransparency = 0.04, TextTransparency = 0 },
 				Stroke = { Transparency = 0.35 },
 			})
+
 			return
 		end
 		if not self.HudVisible then return end
