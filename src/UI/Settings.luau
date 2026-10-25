@@ -157,7 +157,7 @@ return function(API)
 				ParentFlag = "AutoFarm",
 				Type = "Toggle",
 				Config = {
-					Name = "Avoid Coins Near Murderer (evita moedas próximas ao assassino)",
+					Name = "Avoid Coins Near Murderer",
 					Default = false,
 					Save = true,
 					Callback = function(value) Farm.AvoidMurderer = value == true end,
