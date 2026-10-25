@@ -1,8 +1,8 @@
 -- [[ rolenamedebug ]]
 
 return function(API)
-	local MatchService = API.Services.Match; local Runtime = API.Runtime; local HttpService = API.Roblox.HttpService; local FILE_PATH = "ChorusMM2Delta-RoleNames.txt"
-	local POLL_INTERVAL = 1; local SeenRoles = {}; local BufferedLines = {}; local LastWarningAt = 0
+	local MatchService = API.Services.Match; local Runtime = API.Runtime; local FILE_PATH = "ChorusMM2Delta-RoleNames.txt"; local POLL_INTERVAL = 1
+	local SeenRoles = {}; local BufferedLines = {}; local LastWarningAt = 0
 	local function appendLine(line)
 		if type(appendfile) == "function" then
 			local ok = pcall(appendfile, FILE_PATH, line)
@@ -19,12 +19,9 @@ return function(API)
 		if writeOk then table.insert(BufferedLines, line) end
 		return writeOk
 	end
-	local function logRole(playerName, role)
-		if type(playerName) ~= "string" or type(role) ~= "string" or role == "" or SeenRoles[role] then return end
-		local encoded
-		local ok = pcall(function() encoded = HttpService:JSONEncode({ Player = playerName, Role = role }) end)
-		if not ok or type(encoded) ~= "string" then return end
-		if appendLine(encoded .. "\n") then
+	local function logRole(role)
+		if type(role) ~= "string" or role == "" or SeenRoles[role] then return end
+		if appendLine(role .. "\n") then
 			SeenRoles[role] = true; print("[Chorus Role Debug] Papel observado: " .. role)
 		elseif os.clock() - LastWarningAt >= 10 then
 			LastWarningAt = os.clock()
@@ -39,8 +36,8 @@ return function(API)
 		while not Runtime.ShuttingDown do
 			local ok, roleData = pcall(MatchService.GetPlayerData, MatchService)
 			if ok and type(roleData) == "table" then
-				for playerName, profile in pairs(roleData) do
-					if type(profile) == "table" then logRole(playerName, profile.Role) end
+				for _, profile in pairs(roleData) do
+					if type(profile) == "table" then logRole(profile.Role) end
 				end
 			end
 			task.wait(POLL_INTERVAL)
