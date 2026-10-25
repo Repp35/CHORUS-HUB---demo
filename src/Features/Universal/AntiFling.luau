@@ -2,7 +2,9 @@
 
 return function(API)
 	local Services = API.Roblox; local Players = Services.Players; local Workspace = Services.Workspace; local Player = API.Player
-	local Runtime = API.Runtime; local Fly = API.Features.Fly; local Farm = API.Features.AutoFarm; local Util = API.Util
+	local Runtime = API.Runtime; local Util = API.Util
+	local function getFly() return API.Features.Fly end
+	local function getFarm() return API.Features.AutoFarm end
 	local function finiteNumber(value, fallback)
 		local number = tonumber(value)
 		if not number or number ~= number or number == math.huge or number == -math.huge then return fallback end
@@ -201,11 +203,11 @@ return function(API)
 		self.LastSafeCFrame = self:_GroundedCFrame(root.Position, root, humanoid, character) or self.LastSafeCFrame
 	end
 	function AntiFling:_GetAllowedSpeed(humanoid)
-		local speed = math.max(self.BaseWalkSpeed or 16, finiteNumber(humanoid.WalkSpeed, 16))
-		if Farm and Farm.Farming then speed = math.max(speed, finiteNumber(Farm.Speed, 23)) end
-		if Fly and Fly.Enabled then
-			local flySpeed = type(Fly.GetMovementSpeed) == "function" and Fly:GetMovementSpeed()
-				or finiteNumber(Fly.Speed, 1) * 50
+		local speed = math.max(self.BaseWalkSpeed or 16, finiteNumber(humanoid.WalkSpeed, 16)); local farm = getFarm(); local fly = getFly()
+		if farm and farm.Farming then speed = math.max(speed, finiteNumber(farm.Speed, 23)) end
+		if fly and fly.Enabled then
+			local flySpeed = type(fly.GetMovementSpeed) == "function" and fly:GetMovementSpeed()
+				or finiteNumber(fly.Speed, 1) * 50
 			speed = math.max(speed, flySpeed)
 		end
 		return speed
@@ -229,8 +231,8 @@ return function(API)
 			self:_Warn("Anti Fling detectou um impulso, mas não encontrou uma posição segura com chão."); return false
 		end
 		if not self.RecoveryCFrame then self.RecoveryUntil = now + self.RecoveryDuration end
-		self.RecoveryCFrame = safeCFrame
-		if Farm and Farm.Tween then pcall(function() Farm.Tween:Cancel() end) end
+		self.RecoveryCFrame = safeCFrame; local farm = getFarm()
+		if farm and farm.Tween then pcall(function() farm.Tween:Cancel() end) end
 		local ok = pcall(function()
 			root.CFrame = safeCFrame; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero
 		end)
@@ -258,10 +260,10 @@ return function(API)
 			local deltaTime = math.max(now - self.LastSampleAt, 1 / 240); local allowedSpeed = self:_GetAllowedSpeed(humanoid); local linear = root.AssemblyLinearVelocity
 			local angular = root.AssemblyAngularVelocity
 			if not Util.IsFiniteVector3(linear) or not Util.IsFiniteVector3(angular) then self:_ApplyRecovery(root, humanoid, now); return end
-			local horizontalSpeed = Vector3.new(linear.X, 0, linear.Z).Magnitude; local hasScriptMovement = (Fly and Fly.Enabled) or (Farm and Farm.Farming)
-			local angularLimit = (Fly and Fly.Enabled) and 720 or self.AngularVelocityLimit; local jumpLimit = math.max(self.JumpVelocityLimit, finiteNumber(humanoid.JumpPower, 50) * 2.2)
-			local verticalLimit = hasScriptMovement and (allowedSpeed * 1.5 + 20) or jumpLimit; local horizontalLimit = allowedSpeed * 1.5 + 20
-			local positionTolerance = self.MovementTolerance + ((Farm and Farm.Farming) and 4 or 0); local positionDelta = position - self.LastPosition
+			local horizontalSpeed = Vector3.new(linear.X, 0, linear.Z).Magnitude; local fly = getFly(); local farm = getFarm()
+			local hasScriptMovement = (fly and fly.Enabled) or (farm and farm.Farming); local angularLimit = (fly and fly.Enabled) and 720 or self.AngularVelocityLimit
+			local jumpLimit = math.max(self.JumpVelocityLimit, finiteNumber(humanoid.JumpPower, 50) * 2.2); local verticalLimit = hasScriptMovement and (allowedSpeed * 1.5 + 20) or jumpLimit
+			local horizontalLimit = allowedSpeed * 1.5 + 20; local positionTolerance = self.MovementTolerance + ((farm and farm.Farming) and 4 or 0); local positionDelta = position - self.LastPosition
 			local horizontalDistance = Vector3.new(positionDelta.X, 0, positionDelta.Z).Magnitude; local verticalDistance = math.abs(positionDelta.Y)
 			local verticalMoveSpeed = hasScriptMovement and allowedSpeed or jumpLimit; local maxHorizontalStep = allowedSpeed * deltaTime + positionTolerance
 			local maxVerticalStep = verticalMoveSpeed * deltaTime + positionTolerance; local exceededVelocity = horizontalSpeed > horizontalLimit

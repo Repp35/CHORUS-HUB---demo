@@ -3,7 +3,9 @@
 return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local Workspace = Services.Workspace; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
-	local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12; local PASS_THROUGH_DISTANCE = 1.5
+	local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12; local PASS_THROUGH_DISTANCE = 1.5; local ROLE_REFRESH_INTERVAL = 0.5
+	local NO_ROLE_VALUES =
+		{ unknown = true, none = true, norole = true, sempapel = true, unassigned = true, waiting = true, lobby = true }
 
 	-- State
 	local Farm = {
@@ -30,6 +32,8 @@ return function(API)
 		PassedCoins = setmetatable({}, { __mode = "k" }),
 		PassedContainer = nil,
 		LastErrorAt = 0,
+		RoleData = nil,
+		NextRoleRefreshAt = 0,
 	}
 
 	-- TouchSupport
@@ -44,6 +48,35 @@ return function(API)
 		local now = os.clock()
 		if now - self.LastErrorAt < 5 then return end
 		self.LastErrorAt = now; warn("[Chorus MM2] Auto Farm recuperando após erro em " .. context .. ": " .. tostring(errorMessage))
+	end
+	function Farm:GetRoleData(force)
+		local now = os.clock()
+		if not force and now < self.NextRoleRefreshAt then return self.RoleData end
+		self.NextRoleRefreshAt = now + ROLE_REFRESH_INTERVAL; local ok, roleData = pcall(MatchService.GetPlayerData, MatchService); self.RoleData = ok and type(roleData) == "table" and roleData or nil
+		return self.RoleData
+	end
+	function Farm:HasAssignedRole()
+		local roleData = self:GetRoleData(); local profile = roleData and roleData[Player.Name]; local role = type(profile) == "table" and profile.Role or nil
+		if type(role) ~= "string" or profile.Dead == true or profile.Killed == true then return false end
+		local normalizedRole = string.lower(role):gsub("[%s_%-]", ""); return normalizedRole ~= "" and not NO_ROLE_VALUES[normalizedRole]
+	end
+	function Farm:GetActiveContext()
+		if Player:GetAttribute("Alive") ~= true then self.RoleData = nil; self.NextRoleRefreshAt = 0; return false end
+		local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
+		if
+			not character
+			or not character:IsDescendantOf(Workspace)
+			or not humanoid
+			or humanoid.Health <= 0
+			or not root
+			or not root:IsA("BasePart")
+			or not self:HasAssignedRole()
+		then
+			return false
+		end
+		local container = MapService:GetCoinContainer()
+		if not container or not container.Parent then return false end
+		return true, character, humanoid, root, container
 	end
 	function Farm:ResetCharacterForFullBag()
 		if
@@ -115,6 +148,8 @@ return function(API)
 		if
 			not self.Enabled
 			or not self.Farming
+			or not self:HasAssignedRole()
+			or Player:GetAttribute("Alive") ~= true
 			or not root
 			or not root.Parent
 			or self.PassedCoins[coin]
@@ -138,7 +173,7 @@ return function(API)
 			if now - self.LastProximitySweepAt < 0.04 then return end
 			self.LastProximitySweepAt = now
 			local ok, errorMessage = xpcall(function()
-				local inMatch, _, _, root, container = MatchService:GetContext()
+				local inMatch, _, _, root, container = self:GetActiveContext()
 				if not inMatch then return end
 				for coin, coinPosition in pairs(MapService:GetCoinPositions(container)) do
 					self:TouchCoinInRange(root, coin, container, coinPosition)
@@ -250,7 +285,14 @@ return function(API)
 
 	-- CoinCollectionLoop
 	function Farm:CollectCoin(coin, character, humanoid, root, container, coinPosition)
-		if not self.Enabled or not CoinService:IsCollectable(coin, container) then return end
+		if
+			not self.Enabled
+			or not self:HasAssignedRole()
+			or Player:GetAttribute("Alive") ~= true
+			or not CoinService:IsCollectable(coin, container)
+		then
+			return
+		end
 		local succeeded, errorMessage = xpcall(function()
 			if self.Farming and self.FarmingCharacter ~= character then self:StopFarming() end
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
@@ -278,13 +320,14 @@ return function(API)
 				and root.Parent
 				and os.clock() < deadline
 			do
-				local inMatch, activeCharacter, activeHumanoid, activeRoot, activeContainer = MatchService:GetContext()
+				local inMatch, activeCharacter, activeHumanoid, activeRoot, activeContainer = self:GetActiveContext()
 				if
 					not inMatch
 					or activeCharacter ~= character
 					or activeHumanoid ~= humanoid
 					or activeRoot ~= root
 					or activeContainer ~= container
+					or not self:HasAssignedRole()
 					or not coin.Parent
 					or not coin:IsDescendantOf(container)
 					or not CoinService:IsCollectable(coin, container)
@@ -326,14 +369,14 @@ return function(API)
 	function Farm:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
 		local character = Player.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); self.ActivationCharacter = character; self.ActivationRoot = root
-		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil
-		self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
+		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; self.RoleData = nil; self.NextRoleRefreshAt = 0
+		table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
 		if invisicam and type(invisicam.SetSource) == "function" then pcall(invisicam.SetSource, invisicam, "AutoFarm", true) end
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
 				local ok, errorMessage = xpcall(function()
-					local inMatch, character, humanoid, root, container = MatchService:GetContext()
+					local inMatch, character, humanoid, root, container = self:GetActiveContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
 					if self.PassedContainer ~= container then table.clear(self.PassedCoins); self.PassedContainer = container end
