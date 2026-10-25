@@ -54,9 +54,10 @@ return function(API)
 		},
 	}
 
-	local destroySafely = Util.DestroySafely
+	local STUD_TO_METERS = 0.28; local destroySafely = Util.DestroySafely
 	local function getLabelColor(color) return color:Lerp(Color3.new(1, 1, 1), 0.38) end
 	local function getNameTextSize(esp, distance)
+		distance = tonumber(distance) or esp.NameScaleFarDistance
 		local progress = math.clamp(
 			(distance - esp.NameScaleNearDistance) / math.max(esp.NameScaleFarDistance - esp.NameScaleNearDistance, 1),
 			0,
@@ -170,13 +171,14 @@ return function(API)
 	function ESP:CreatePlayerMarker(target, character, root, color)
 		local highlight = createHighlight(self, "ChorusPlayerESP", character, color); local head = character:FindFirstChild("Head"); local nameAdornee = head and head:IsA("BasePart") and head or root
 		local gui = createBillboard("ChorusPlayerName", nameAdornee, root); gui.StudsOffset = Vector3.new(0, nameAdornee.Size.Y * 0.5 + 0.55, 0); local identityLabel = createTextLabel("Identity", gui)
-		local usernameLabel = createTextLabel("Username", gui)
+		local usernameLabel = createTextLabel("Username", gui); local distanceLabel = createTextLabel("Distance", gui)
 		return {
 			Character = character,
 			Root = root,
 			Gui = gui,
 			IdentityLabel = identityLabel,
 			UsernameLabel = usernameLabel,
+			DistanceLabel = distanceLabel,
 			NameAdornee = nameAdornee,
 			Highlight = highlight,
 		}
@@ -184,14 +186,21 @@ return function(API)
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
 		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true; local showIdentity = self.ShowIdentity == true and categoryEnabled
 		local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
-		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local offsetY = 0
-		local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
+		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local distanceHeight = 16
+		local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
 		marker.IdentityLabel.TextSize = identitySize; marker.IdentityLabel.Visible = showIdentity; marker.UsernameLabel.Text = username
 		marker.UsernameLabel.TextColor3 = labelColor
-		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername
+		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; marker.DistanceLabel.Text = type(distance) == "number"
+				and distance == distance
+				and math.abs(distance) < math.huge
+				and string.format("%.1f m", math.max(distance, 0) * STUD_TO_METERS)
+			or "-- m"
+		marker.DistanceLabel.TextColor3 = labelColor
+		marker.DistanceLabel.TextSize = math.max(9, usernameSize - 1); marker.DistanceLabel.Visible = categoryEnabled
 		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
 		if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(0, offsetY); marker.IdentityLabel.Size = UDim2.new(1, 0, 0, identityHeight); offsetY += identityHeight end
+		if categoryEnabled then marker.DistanceLabel.Position = UDim2.fromOffset(0, offsetY); marker.DistanceLabel.Size = UDim2.new(1, 0, 0, distanceHeight); offsetY += distanceHeight end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
 	end
 	function ESP:SetFilter(filter, enabled)
@@ -244,7 +253,7 @@ return function(API)
 				or "Sem papel"
 			if category and identity and self.Filters[category] == true and worldAvailable then
 				keepWorld[target] = true; local colorCategory = isSelf and (roleCategory or "Player") or category; local color = self.Colors[colorCategory]
-				local distance = getDistance(localRoot, root, self.NameScaleFarDistance); local marker = self.PlayerMarkers[target]; local head = character:FindFirstChild("Head")
+				local distance = getDistance(localRoot, root); local marker = self.PlayerMarkers[target]; local head = character:FindFirstChild("Head")
 				local nameAdornee = head and head:IsA("BasePart") and head or root
 				if
 					not marker
@@ -406,7 +415,11 @@ return function(API)
 		if not marker or not marker.Gui or not marker.Highlight then return true end
 		if not marker.Gui.Parent or not marker.Highlight.Parent then return true end
 		if not marker.IdentityLabel or marker.IdentityLabel.Parent ~= marker.Gui then return true end
-		return includeUsername and (not marker.UsernameLabel or marker.UsernameLabel.Parent ~= marker.Gui) or false
+		if not includeUsername then return false end
+		return not marker.UsernameLabel
+			or marker.UsernameLabel.Parent ~= marker.Gui
+			or not marker.DistanceLabel
+			or marker.DistanceLabel.Parent ~= marker.Gui
 	end
 	function ESP:ReapplyMarkers()
 		if not self.Enabled or Runtime.ShuttingDown then return end
@@ -450,9 +463,9 @@ return function(API)
 				marker.UsernameLabel.Text,
 				marker.IdentityLabel.Text,
 				color,
-				getDistance(localRoot, marker.Root, self.NameScaleFarDistance)
+				getDistance(localRoot, marker.Root)
 			)
-			reapplyLabel(marker.IdentityLabel); reapplyLabel(marker.UsernameLabel)
+			reapplyLabel(marker.IdentityLabel); reapplyLabel(marker.UsernameLabel); reapplyLabel(marker.DistanceLabel)
 		end
 		for part, marker in pairs(self.CoinMarkers) do
 			if markerNeedsRepair(marker, false) or not part.Parent then needsRepair = true; continue end

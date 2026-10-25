@@ -42,11 +42,6 @@ return function(API)
 		if ok and type(touchFunction) == "function" then return touchFunction end
 		return nil
 	end
-	local function getClickFunction()
-		local ok, clickFunction = pcall(function() return fireclickdetector end)
-		if ok and type(clickFunction) == "function" then return clickFunction end
-		return nil
-	end
 
 	-- Diagnostics
 	function Pickup:ReportError(context, errorMessage)
@@ -155,7 +150,7 @@ return function(API)
 		local now = os.clock()
 		local nearestTag, nearestPart, nearestDistance
 		for _, taggedGun in ipairs(Services.CollectionService:GetTagged(GUN_DROP_TAG)) do
-			local part = getGunPart(taggedGun)
+			local part = taggedGun:IsA("BasePart") and taggedGun or nil
 			if
 				part
 				and (self.RetryAfter[taggedGun] or 0) <= now
@@ -497,33 +492,16 @@ return function(API)
 			local roleData = self:GetRoleData(); local safe, threatRoot = self:IsSafeToApproach(root, humanoid, gun, gunPart, map, roleData)
 			if not safe or threatRoot and self:ShouldReplan(root, gunPart, threatRoot) then return false, "unsafe", threatRoot end
 		end
-		local originalCFrame = root.CFrame; local originalLinearVelocity = root.AssemblyLinearVelocity; local originalAngularVelocity = root.AssemblyAngularVelocity
-		local originalRotation = originalCFrame - originalCFrame.Position; local teleported = false; local touchFunction = getTouchFunction(); local clickFunction = getClickFunction()
-		local clickDetector = gun:FindFirstChildWhichIsA("ClickDetector", true)
-			or gunPart:FindFirstChildWhichIsA("ClickDetector", true)
-		local function restore()
-			if Player.Character ~= character or not root.Parent then return end
-			pcall(function()
-				root.CFrame = originalCFrame; root.AssemblyLinearVelocity = originalLinearVelocity; root.AssemblyAngularVelocity = originalAngularVelocity
-			end)
-		end
+		local touchFunction = getTouchFunction()
+		if not touchFunction then return false, "touch_unavailable" end
 		self.Touching = true
 		local ok, errorMessage = xpcall(function()
-			root.CFrame = CFrame.new(gunPart.Position) * originalRotation; teleported = true
-			if touchFunction then pcall(touchFunction, root, gunPart, 0) end
-			if clickFunction and clickDetector then pcall(clickFunction, clickDetector) end
-			Services.RunService.Heartbeat:Wait()
-			if touchFunction and gunPart.Parent then pcall(touchFunction, root, gunPart, 1) end
+			pcall(touchFunction, root, gunPart, 0); Services.RunService.Heartbeat:Wait()
+			if gunPart.Parent then pcall(touchFunction, root, gunPart, 1) end
+			task.wait(0.3)
 		end, Util.FormatError)
-		if teleported then restore() end
 		self.Touching = false
 		if not ok then error(errorMessage, 0) end
-		local deadline = os.clock() + 0.75
-		repeat
-			if self:HasGun(character) then return true end
-			if not gunStillThere(gun) then break end
-			Services.RunService.Heartbeat:Wait()
-		until os.clock() >= deadline
 		local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
 	end
 
