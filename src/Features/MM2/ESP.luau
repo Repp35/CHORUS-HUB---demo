@@ -199,8 +199,15 @@ return function(API)
 		marker.DistanceLabel.TextColor3 = labelColor
 		marker.DistanceLabel.TextSize = math.max(9, usernameSize - 1); marker.DistanceLabel.Visible = categoryEnabled
 		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
-		if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(0, offsetY); marker.IdentityLabel.Size = UDim2.new(1, 0, 0, identityHeight); offsetY += identityHeight end
-		if categoryEnabled then marker.DistanceLabel.Position = UDim2.fromOffset(0, offsetY); marker.DistanceLabel.Size = UDim2.new(1, 0, 0, distanceHeight); offsetY += distanceHeight end
+		if showIdentity or categoryEnabled then
+			local identityWidth = showIdentity and math.ceil(marker.IdentityLabel.TextBounds.X) + 8 or 0
+			local distanceWidth = categoryEnabled and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0; local gap = showIdentity and categoryEnabled and 6 or 0
+			local rowWidth = identityWidth + distanceWidth + gap; local rowHeight = math.max(showIdentity and identityHeight or 0, categoryEnabled and distanceHeight or 0)
+			local rowX = (260 - rowWidth) * 0.5
+			if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(rowX, offsetY); marker.IdentityLabel.Size = UDim2.fromOffset(identityWidth, rowHeight) end
+			if categoryEnabled then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + identityWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
+			offsetY += rowHeight
+		end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
 	end
 	function ESP:SetFilter(filter, enabled)
