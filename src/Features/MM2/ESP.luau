@@ -197,7 +197,7 @@ return function(API)
 		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; local distanceText = type(distance) == "number"
 				and distance == distance
 				and math.abs(distance) < math.huge
-				and (string.format("%.1f", math.max(distance, 0) * STUD_TO_METERS):gsub("%.", ",") .. "m")
+				and (string.format("%.2f", math.max(distance, 0) * STUD_TO_METERS):gsub("%.", ",") .. "m")
 			or "-- m"
 		marker.DistanceLabel.Text = distanceText
 		marker.DistanceLabel.TextColor3 = labelColor
@@ -254,6 +254,38 @@ return function(API)
 			self:ScheduleRepair()
 		end
 		return true
+	end
+	function ESP:UpdateDistances()
+		if not self.Enabled or not self.ShowDistance then return end
+		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
+		if not localRoot or not localRoot:IsA("BasePart") then return end
+		for target, marker in pairs(self.PlayerMarkers) do
+			if
+				target == Player
+				or not marker.Root
+				or not marker.Root.Parent
+				or not marker.Gui
+				or not marker.Gui.Parent
+				or not marker.UsernameLabel
+				or not marker.UsernameLabel.Parent
+				or not marker.IdentityLabel
+				or not marker.IdentityLabel.Parent
+				or not marker.DistanceLabel
+				or not marker.DistanceLabel.Parent
+			then
+				continue
+			end
+			local color = self.Colors[marker.ColorCategory or marker.Category]
+			if color then
+				self:UpdatePlayerLabels(
+					marker,
+					marker.UsernameLabel.Text,
+					marker.IdentityLabel.Text,
+					color,
+					getDistance(localRoot, marker.Root)
+				)
+			end
+		end
 	end
 	function ESP:RefreshPlayers(roleData, inMatch)
 		local keepWorld = {}; local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
@@ -554,7 +586,9 @@ return function(API)
 		self.LastPulseAt = os.clock()
 		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
 			local now = os.clock()
-			if not self.Enabled or now - self.LastPulseAt < self.PulseInterval then return end
+			if not self.Enabled then return end
+			self:UpdateDistances()
+			if now - self.LastPulseAt < self.PulseInterval then return end
 			local needsRoleData = self.InRound
 				and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
 			if needsRoleData and not self.RoleData then return end
