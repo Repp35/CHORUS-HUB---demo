@@ -67,19 +67,19 @@ return function(API)
 			and getLiveTarget(target, true) ~= nil
 	end
 	function MapTools:GetPlayerOptions()
-		local names = { "Nenhum" }
+		local names = { "None" }
 		for _, target in ipairs(Services.Players:GetPlayers()) do
 			if target ~= Player then table.insert(names, target.Name) end
 		end
 		table.sort(names, function(left, right)
-			if left == "Nenhum" then return true end
-			if right == "Nenhum" then return false end
+			if left == "None" then return true end
+			if right == "None" then return false end
 			return left:lower() < right:lower()
 		end)
 		return names
 	end
 	function MapTools:GetFavoriteMapOptions()
-		local options = { "Nenhum" }; local seen = { Nenhum = true }
+		local options = { "None" }; local seen = { None = true }
 		for _, favourite in ipairs(self.FavoriteMaps) do
 			if not seen[favourite] then seen[favourite] = true; table.insert(options, favourite) end
 		end
@@ -87,8 +87,8 @@ return function(API)
 			if not seen[entry.Name] then seen[entry.Name] = true; table.insert(options, entry.Name) end
 		end
 		table.sort(options, function(left, right)
-			if left == "Nenhum" then return true end
-			if right == "Nenhum" then return false end
+			if left == "None" then return true end
+			if right == "None" then return false end
 			return left:lower() < right:lower()
 		end)
 		return options
@@ -285,7 +285,7 @@ return function(API)
 	end
 	function MapTools:SetFavoriteMaps(favorites)
 		self.FavoriteMaps = {}
-		if type(favorites) == "string" and favorites ~= "" and favorites ~= "Nenhum" then
+		if type(favorites) == "string" and favorites ~= "" and favorites ~= "None" and favorites ~= "Nenhum" then
 			table.insert(self.FavoriteMaps, favorites)
 		elseif type(favorites) == "table" then
 			for _, name in ipairs(favorites) do

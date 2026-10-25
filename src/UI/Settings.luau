@@ -7,7 +7,7 @@ return function(API)
 	local Importance = ControlRegistry.Importance; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip
 	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder; local Gravity = API.Features.Gravity; local MapTools = API.Features.MapTools
-	local Alerts = API.Features.Alerts; local selectedPlayerName = "Nenhum"
+	local Alerts = API.Features.Alerts; local selectedPlayerName = "None"
 
 	-- ControlGroups
 	local Settings = {}
@@ -34,7 +34,7 @@ return function(API)
 				SectionKey = "ShootMurderSection",
 				Type = "Slider",
 				Config = {
-					Name = "Precisão manual",
+					Name = "Manual Accuracy",
 					Min = 0,
 					Max = 100,
 					Default = 100,
@@ -64,7 +64,7 @@ return function(API)
 				SectionKey = "ShootMurderSection",
 				Type = "Slider",
 				Config = {
-					Name = "Precisão automática",
+					Name = "Auto Accuracy",
 					Min = 0,
 					Max = 100,
 					Default = 100,
@@ -81,8 +81,8 @@ return function(API)
 				Importance = Importance.Normal,
 				Type = "Toggle",
 				Config = {
-					Name = "Legit (esperar o Murderer sacar a faca)",
-					Description = "Auto e manual shoot só tentam atirar depois que a faca estiver equipada pelo Murderer.",
+					Name = "Legit (aguarda o assassino sacar a faca)",
+					Description = "Aguarda o assassino sacar a faca.",
 					Default = false,
 					Save = true,
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
@@ -95,7 +95,7 @@ return function(API)
 				Importance = Importance.Normal,
 				Type = "Toggle",
 				Config = {
-					Name = "Silent aim (acertar fora da tela)",
+					Name = "Silent Aim (acerta fora da tela)",
 					Default = true,
 					Save = true,
 					Callback = function(value) ShootMurder:SetAllowOffscreen(value) end,
@@ -125,7 +125,7 @@ return function(API)
 				Flag = "GunPickupSafety",
 				Type = "Toggle",
 				Config = {
-					Name = "Segurança contra o Murderer",
+					Name = "Murderer Safety (evita coleta sob ameaça do assassino)",
 					Default = false,
 					Save = true,
 					Callback = function(value) AutoGunPickup:SetSafetyEnabled(value) end,
@@ -157,7 +157,7 @@ return function(API)
 				ParentFlag = "AutoFarm",
 				Type = "Toggle",
 				Config = {
-					Name = "Evitar moedas perto do Murderer",
+					Name = "Avoid Coins Near Murderer (evita moedas próximas ao assassino)",
 					Default = false,
 					Save = true,
 					Callback = function(value) Farm.AvoidMurderer = value == true end,
@@ -170,7 +170,7 @@ return function(API)
 				ParentFlag = "AutoFarm",
 				Type = "Toggle",
 				Config = {
-					Name = "Resetar com a bolsa cheia (Inocente)",
+					Name = "Reset When Bag Is Full (Innocent)",
 					Default = false,
 					Save = true,
 					Callback = function(value) Farm:SetResetWhenBagFull(value) end,
@@ -201,14 +201,14 @@ return function(API)
 				SectionKey = "MapTravelSection",
 				Importance = Importance.High,
 				Type = "Button",
-				Config = { Name = "Teleportar para o mapa", Callback = function() MapTools:TeleportToMap() end },
+				Config = { Name = "Teleport to Map", Callback = function() MapTools:TeleportToMap() end },
 			},
 			{
 				Key = "TeleportToMurderer",
 				SectionKey = "MapTravelSection",
 				Type = "Button",
 				Config = {
-					Name = "Teleportar no Murderer",
+					Name = "Teleport to Murderer",
 					Callback = function() MapTools:TeleportToRole("Murderer") end,
 				},
 			},
@@ -217,7 +217,7 @@ return function(API)
 				SectionKey = "MapTravelSection",
 				Type = "Button",
 				Config = {
-					Name = "Teleportar em quem segura a arma",
+					Name = "Teleport to Gun Holder",
 					Callback = function() MapTools:TeleportToRole("GunHolder") end,
 				},
 			},
@@ -227,10 +227,10 @@ return function(API)
 				SectionKey = "MapTravelSection",
 				Type = "Dropdown",
 				Config = {
-					Name = "Jogador",
+					Name = "Player",
 					Options = MapTools:GetPlayerOptions(),
-					Default = "Nenhum",
-					Callback = function(value) selectedPlayerName = value end,
+					Default = "None",
+					Callback = function(value) selectedPlayerName = value == "Nenhum" and "None" or value end,
 				},
 			},
 			{
@@ -238,7 +238,7 @@ return function(API)
 				SectionKey = "MapTravelSection",
 				Type = "Button",
 				Config = {
-					Name = "Teleportar até jogador",
+					Name = "Teleport to Player",
 					Callback = function()
 						MapTools:TeleportToPlayer(Services.Players:FindFirstChild(selectedPlayerName))
 					end,
@@ -249,7 +249,7 @@ return function(API)
 				SectionKey = "MapTravelSection",
 				Type = "Button",
 				Config = {
-					Name = "Caminhar até jogador",
+					Name = "Walk to Player",
 					Callback = function() MapTools:WalkToPlayer(Services.Players:FindFirstChild(selectedPlayerName)) end,
 				},
 			},
@@ -260,9 +260,9 @@ return function(API)
 				SectionKey = "MapVotingSection",
 				Type = "Dropdown",
 				Config = {
-					Name = "Mapa favorito para votar",
+					Name = "Favorite Map to Vote",
 					Options = MapTools:GetFavoriteMapOptions(),
-					Default = "Nenhum",
+					Default = "None",
 					Save = true,
 					Callback = function(value) MapTools:SetFavoriteMaps(value) end,
 				},
@@ -293,7 +293,7 @@ return function(API)
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
 				Config = {
-					Name = "Identidades (papel / objeto)",
+					Name = "Identity (papel/objeto)",
 					Default = true,
 					Save = true,
 					Callback = function(value) ESP.ShowIdentity = value == true end,
@@ -306,7 +306,7 @@ return function(API)
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
 				Config = {
-					Name = "Nome de usuário",
+					Name = "Username",
 					Default = true,
 					Save = true,
 					Callback = function(value) ESP.ShowUsername = value == true end,
@@ -319,7 +319,7 @@ return function(API)
 				ParentFlag = "ESPEnabled",
 				Type = "Toggle",
 				Config = {
-					Name = "Mostrar você",
+					Name = "Show Self",
 					Default = true,
 					Save = true,
 					Callback = function(value) ESP:SetShowSelf(value) end,
@@ -332,7 +332,7 @@ return function(API)
 				SectionKey = "ESPSection",
 				Type = "Toggle",
 				Config = {
-					Name = "Mostrar distância",
+					Name = "Show Distance",
 					Default = true,
 					Save = true,
 					Callback = function(value) ESP.ShowDistance = value == true end,
@@ -393,7 +393,7 @@ return function(API)
 				Flag = "DynamicSpeedEnabled",
 				Type = "Toggle",
 				Config = {
-					Name = "Speed dinâmico",
+					Name = "Dynamic Speed",
 					Default = false,
 					Save = true,
 					Callback = function(value)
@@ -409,7 +409,7 @@ return function(API)
 				ParentFlag = "DynamicSpeedEnabled",
 				Type = "Slider",
 				Config = {
-					Name = "Velocidade",
+					Name = "Speed",
 					Min = 0,
 					Max = 100,
 					Default = DynamicSpeed:GetCurrentSpeed(),
@@ -488,7 +488,7 @@ return function(API)
 				SectionKey = "GravitySection",
 				Type = "Toggle",
 				Config = {
-					Name = "Gravidade personalizada",
+					Name = "Custom Gravity",
 					Default = false,
 					Save = true,
 					Callback = function(value) Gravity:SetEnabled(value) end,
@@ -501,7 +501,7 @@ return function(API)
 				SectionKey = "GravitySection",
 				Type = "Slider",
 				Config = {
-					Name = "Gravidade",
+					Name = "Gravity",
 					Min = 0,
 					Max = 400,
 					Default = Gravity.DefaultValue,
@@ -535,7 +535,7 @@ return function(API)
 				Importance = Importance.High,
 				Type = "Toggle",
 				Config = {
-					Name = "Meu cargo e quem é o Murderer",
+					Name = "My Role and the Murderer",
 					Default = true,
 					Save = true,
 					Callback = function(value) Alerts:SetRoleAndMurdererEnabled(value) end,
@@ -548,7 +548,7 @@ return function(API)
 				Importance = Importance.High,
 				Type = "Toggle",
 				Config = {
-					Name = "Avisar quando a arma cair",
+					Name = "Notify When the Gun Drops",
 					Default = true,
 					Save = true,
 					Callback = function(value) Alerts:SetGunDroppedEnabled(value) end,
@@ -562,13 +562,13 @@ return function(API)
 				Key = "ScriptInfoAuthor",
 				SectionKey = "ScriptInfoSection",
 				Type = "Label",
-				Text = "Autor: " .. Config.ScriptInfo.Author,
+				Text = "Author: " .. Config.ScriptInfo.Author,
 			},
 			{
 				Key = "ScriptInfoVersion",
 				SectionKey = "ScriptInfoSection",
 				Type = "Label",
-				Text = "Versão: " .. Config.ScriptInfo.Version,
+				Text = "Version: " .. Config.ScriptInfo.Version,
 			},
 			{ Key = "ConfigurationSection", Type = "Section", Config = { Name = "Configuração" } },
 			{
@@ -576,7 +576,7 @@ return function(API)
 				SectionKey = "ConfigurationSection",
 				Type = "Button",
 				Config = {
-					Name = "Resetar configurações salvas",
+					Name = "Reset Saved Configuration",
 					Callback = function() Settings:ResetSavedConfiguration() end,
 				},
 			},
@@ -585,11 +585,11 @@ return function(API)
 
 	-- ESPOptions
 	local ESPOptions = {
-		{ Name = "Assassino", Filter = "Murderer", Flag = "ESPMurderer", Default = true },
-		{ Name = "Xerife + Hero", Filter = "Sheriff", Flag = "ESPSheriff", Default = true },
-		{ Name = "Inocentes", Filter = "Innocent", Flag = "ESPInnocent", Default = true },
+		{ Name = "Murderer", Filter = "Murderer", Flag = "ESPMurderer", Default = true },
+		{ Name = "Sheriff + Hero", Filter = "Sheriff", Flag = "ESPSheriff", Default = true },
+		{ Name = "Innocents", Filter = "Innocent", Flag = "ESPInnocent", Default = true },
 		{ Name = "Candy / Coin", Filter = "CandyCoin", Flag = "ESPCandyCoin", Default = false },
-		{ Name = "Arma caída", Filter = "Gun", Flag = "ESPGun", Default = true },
+		{ Name = "Dropped Gun", Filter = "Gun", Flag = "ESPGun", Default = true },
 	}
 
 	for _, option in ipairs(ESPOptions) do
@@ -691,11 +691,11 @@ return function(API)
 		end
 		local function refreshPlayerOptions()
 			local options = MapTools:GetPlayerOptions()
-			refreshDropdown("Map", "MapTargetPlayer", options, function() return selectedPlayerName end, "Nenhum")
+			refreshDropdown("Map", "MapTargetPlayer", options, function() return selectedPlayerName end, "None")
 		end
 		Runtime:Track(Services.Players.PlayerAdded:Connect(refreshPlayerOptions))
 		Runtime:Track(Services.Players.PlayerRemoving:Connect(function(target)
-			if selectedPlayerName == target.Name then selectedPlayerName = "Nenhum" end
+			if selectedPlayerName == target.Name then selectedPlayerName = "None" end
 			refreshPlayerOptions()
 		end))
 		local optionsThread
@@ -706,8 +706,8 @@ return function(API)
 					"Map",
 					"FavoriteMap",
 					options,
-					function() return MapTools.FavoriteMaps[1] or "Nenhum" end,
-					"Nenhum"
+					function() return MapTools.FavoriteMaps[1] or "None" end,
+					"None"
 				)
 				task.wait(3)
 			end
