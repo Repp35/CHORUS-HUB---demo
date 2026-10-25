@@ -20,6 +20,9 @@ return function(API)
 		FillTransparency = 0.82,
 		OutlineTransparency = 0,
 		Thread = nil,
+		RenderConnection = nil,
+		PulseInterval = 5,
+		LastPulseAt = 0,
 		RepairScheduled = false,
 		RoleRemote = nil,
 		RoleChangedConnection = nil,
@@ -535,6 +538,17 @@ return function(API)
 		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
 		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
+		self.LastPulseAt = os.clock()
+		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
+			local now = os.clock()
+			if not self.Enabled or now - self.LastPulseAt < self.PulseInterval then return end
+			self.LastPulseAt = now
+			local ok, errorMessage = xpcall(function()
+				self.Enabled = false; self:HideMarkersForPreRender(); self.Enabled = true; self:ReapplyMarkers()
+			end, Util.FormatError)
+			if not self.Enabled then self.Enabled = true end
+			if not ok then self:ReportError("ciclo do ESP", errorMessage) end
+		end))
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -549,6 +563,10 @@ return function(API)
 	end
 	function ESP:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
+		if self.RenderConnection then
+			pcall(function() self.RenderConnection:Disconnect() end)
+			self.RenderConnection = nil
+		end
 		if thread then pcall(task.cancel, thread) end
 		if self.RoleChangedConnection then
 			pcall(function() self.RoleChangedConnection:Disconnect() end)
