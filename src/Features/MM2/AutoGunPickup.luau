@@ -9,7 +9,6 @@ return function(API)
 	-- State
 	local Pickup = {
 		Enabled = false,
-		Walking = false,
 		Busy = false,
 		SafetyEnabled = false,
 		Thread = nil,
@@ -476,7 +475,6 @@ return function(API)
 	function Pickup:TryTouchAndConfirm(character, humanoid, root, gun, gunPart, map, generation)
 		local alreadyHasGun = self:HasGun(character)
 		if not gunStillThere(gun) or not gunPart.Parent or alreadyHasGun then return alreadyHasGun, alreadyHasGun and "collected" or "gone" end
-		if (root.Position - gunPart.Position).Magnitude > 8 then return false, "far" end
 		local ready, activeCharacter, activeHumanoid, currentRoot, _, currentMap = self:GetActiveContext()
 		if
 			not ready
@@ -494,104 +492,63 @@ return function(API)
 		end
 		local touchFunction = getTouchFunction()
 		if not touchFunction then return false, "touch_unavailable" end
-		self.Touching = true
+		local originalCFrame = root.CFrame; local originalVelocity = root.AssemblyLinearVelocity; local originalAngularVelocity = root.AssemblyAngularVelocity
+		local contactCFrame = CFrame.new(gunPart.Position + Vector3.new(0, 2, 0)) * originalCFrame.Rotation; self.Touching = true
 		local ok, errorMessage = xpcall(function()
-			pcall(touchFunction, root, gunPart, 0); Services.RunService.Heartbeat:Wait()
+			root.CFrame = contactCFrame; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero; pcall(touchFunction, root, gunPart, 0)
+			Services.RunService.Heartbeat:Wait()
 			if gunPart.Parent then pcall(touchFunction, root, gunPart, 1) end
-			task.wait(0.3)
 		end, Util.FormatError)
+		pcall(function()
+			if root.Parent then root.CFrame = originalCFrame; root.AssemblyLinearVelocity = originalVelocity; root.AssemblyAngularVelocity = originalAngularVelocity end
+		end)
 		self.Touching = false
 		if not ok then error(errorMessage, 0) end
-		local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
+		task.wait(0.3); local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
 	end
 
 	-- PickupLoop
 	function Pickup:RunToGun(character, humanoid, root, container, map, gun, generation)
-		local startedAt = os.clock(); local replans = 0
-		while
-			self.Generation == generation
-			and self.Enabled
-			and not Runtime.ShuttingDown
-			and os.clock() - startedAt < 45
-		do
-			if self:HasGun(character) then return "collected" end
-			local ready, activeCharacter, activeHumanoid, activeRoot, activeContainer, activeMap, roleData =
-				self:GetActiveContext()
-			if
-				not ready
-				or activeCharacter ~= character
-				or activeHumanoid ~= humanoid
-				or activeRoot ~= root
-				or activeContainer ~= container
-				or activeMap ~= map
-				or not gunStillThere(gun)
-			then
-				return "stopped"
-			end
-			if self:HasGun(character) then return "collected" end
-			local gunPart = getGunPart(gun)
-			if not gunPart or pointInModel(map, gunPart.Position, 20) ~= true then return "gone" end
-			local target = gunPart.Position + Vector3.new(0, 2, 0); local waypoints = createPath(root.Position, target)
-			if not waypoints then
-				local _, threatRoot = self:GetMurdererRoot(character, root, map, roleData)
-				if self.SafetyEnabled and threatRoot and self:GetThreatGap(root.Position, threatRoot) < 60 then self:TryEscape(character, humanoid, root, container, map, threatRoot, generation) end
-				self.NextAttemptAt = os.clock() + RETRY_DELAY; return "no_route"
-			end
-			local safe, threatRoot = self:IsSafeToApproach(root, humanoid, gun, gunPart, map, roleData, waypoints)
-			if not safe then
-				if threatRoot and self:GetThreatGap(root.Position, threatRoot) < 60 then self:TryEscape(character, humanoid, root, container, map, threatRoot, generation) end
-				self.NextAttemptAt = os.clock() + RETRY_DELAY; return "unsafe"
-			end
-			local outcome =
-				self:FollowWaypoints(character, humanoid, root, container, map, gun, waypoints, "pickup", generation)
-			if outcome == "collected" then
-				return "collected"
-			elseif outcome == "stopped" or outcome == "stuck" then
-				self.NextAttemptAt = os.clock() + RETRY_DELAY; return outcome
-			elseif outcome == "replan" then
-				replans += 1
-				if replans >= 8 then self.NextAttemptAt = os.clock() + RETRY_DELAY; return "replan_limit" end
-				continue
-			end
-			if not gunStillThere(gun) then return self:HasGun(character) and "collected" or "gone" end
-			gunPart = getGunPart(gun)
-			if not gunPart or (root.Position - gunPart.Position).Magnitude > 8 then
-				replans += 1
-				if replans >= 8 then return "replan_limit" end
-				continue
-			end
-			local collected, touchResult, threatRoot =
-				self:TryTouchAndConfirm(character, humanoid, root, gun, gunPart, map, generation)
-			if collected then return "collected" end
-			if touchResult == "unsafe" then
-				if threatRoot and self:GetThreatGap(root.Position, threatRoot) < 60 then self:TryEscape(character, humanoid, root, container, map, threatRoot, generation) end
-				self.NextAttemptAt = os.clock() + RETRY_DELAY; return "unsafe"
-			elseif touchResult == "far" then
-				replans += 1
-				if replans < 8 then continue end
-				return "replan_limit"
-			elseif touchResult == "gone" then
-				return "gone"
-			elseif touchResult == "stopped" then
-				return "stopped"
-			end
-			return "attempt_failed"
+		if self:HasGun(character) then return "collected" end
+		local ready, activeCharacter, activeHumanoid, activeRoot, activeContainer, activeMap = self:GetActiveContext()
+		if
+			not ready
+			or activeCharacter ~= character
+			or activeHumanoid ~= humanoid
+			or activeRoot ~= root
+			or activeContainer ~= container
+			or activeMap ~= map
+			or self.Generation ~= generation
+			or not gunStillThere(gun)
+		then
+			return "stopped"
 		end
-		return "stopped"
+		local gunPart = getGunPart(gun)
+		if not gunPart or pointInModel(map, gunPart.Position, 20) ~= true then return "gone" end
+		local collected, outcome, threatRoot =
+			self:TryTouchAndConfirm(character, humanoid, root, gun, gunPart, map, generation)
+		if collected then return "collected" end
+		if outcome == "unsafe" then
+			if threatRoot and self:GetThreatGap(root.Position, threatRoot) < 60 then self:TryEscape(character, humanoid, root, container, map, threatRoot, generation) end
+			self.NextAttemptAt = os.clock() + RETRY_DELAY; return "unsafe"
+		elseif outcome == "gone" or outcome == "stopped" then
+			return outcome
+		end
+		return "attempt_failed"
 	end
 	function Pickup:TryPickup()
-		if self.Busy or self.Walking or not self.Enabled or Runtime.ShuttingDown or os.clock() < self.NextAttemptAt then return end
+		if self.Busy or not self.Enabled or Runtime.ShuttingDown or os.clock() < self.NextAttemptAt then return end
 		local ready, character, humanoid, root, container, map = self:GetActiveContext()
 		if not ready or self:HasGun(character) then return end
 		local gun, gunPart = self:GetNearestDroppedGun(root, map)
 		if not gun or not gunPart then return end
-		self.Walking = true; self.Busy = true; self.ActiveHumanoid = humanoid; self.ActiveRoot = root
-		self.NextAttemptAt = os.clock() + 2; local generation = self.Generation
+		self.Busy = true; self.ActiveHumanoid = humanoid; self.ActiveRoot = root; self.NextAttemptAt = os.clock() + 2
+		local generation = self.Generation
 		local ok, outcome = xpcall(
 			function() return self:RunToGun(character, humanoid, root, container, map, gun, generation) end,
 			Util.FormatError
 		)
-		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Walking = false; self.Busy = false
+		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Busy = false
 		if not ok then
 			self.RetryAfter[gun] = os.clock() + RETRY_DELAY; self:ReportError("coleta", outcome)
 		elseif outcome == "collected" or self:HasGun(character) then
@@ -675,10 +632,7 @@ return function(API)
 			pcall(function() self.PlayerDataConnection:Disconnect() end)
 			self.PlayerDataConnection = nil
 		end
-		local humanoid = self.ActiveHumanoid; local root = self.ActiveRoot
-		if not self.Touching and humanoid and humanoid.Parent and root and root.Parent then
-			pcall(function() humanoid:MoveTo(root.Position) end)
-		end
+		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Busy = false; self.Touching = false
 	end
 	Runtime:OnShutdown(function() Pickup:Stop() end)
 
