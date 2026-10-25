@@ -21,7 +21,7 @@ return function()
 		ScriptInfo = ScriptInfo,
 		Name = buildDisplayName(ScriptInfo),
 		IntroText = buildIntroText(ScriptInfo),
-		ConfigFolder = "ChorusMM2Delta",
+		ConfigFolder = "ChorusMM2DeltaV2",
 		SaveConfig = true,
 		HidePremium = true,
 		IntroEnabled = true,

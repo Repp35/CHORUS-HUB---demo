@@ -89,27 +89,13 @@ return function(API)
 				},
 			},
 			{
-				Key = "KillCheaters",
-				Flag = "KillCheaters",
-				SectionKey = "ShootMurderSection",
-				Importance = Importance.Normal,
-				Type = "Toggle",
-				Config = {
-					Name = "Kill Cheaters",
-					Description = "Se o Murderer estiver fora dos limites do mapa, tenta atirar somente como Xerife e com linha de visão limpa.",
-					Default = false,
-					Save = true,
-					Callback = function(value) ShootMurder:SetKillCheatersEnabled(value) end,
-				},
-			},
-			{
 				Key = "ShootMurderOffscreen",
 				Flag = "ShootMurderOffscreen",
 				SectionKey = "ShootMurderSection",
 				Importance = Importance.Normal,
 				Type = "Toggle",
 				Config = {
-					Name = "Acertar fora da tela",
+					Name = "Silent aim (acertar fora da tela)",
 					Default = true,
 					Save = true,
 					Callback = function(value) ShootMurder:SetAllowOffscreen(value) end,
@@ -172,7 +158,7 @@ return function(API)
 				Type = "Toggle",
 				Config = {
 					Name = "Evitar moedas perto do Murderer",
-					Default = true,
+					Default = false,
 					Save = true,
 					Callback = function(value) Farm.AvoidMurderer = value == true end,
 				},
@@ -337,6 +323,19 @@ return function(API)
 					Default = true,
 					Save = true,
 					Callback = function(value) ESP:SetShowSelf(value) end,
+				},
+			},
+			{
+				Key = "ESPShowDistance",
+				Flag = "ESPShowDistance",
+				ParentFlag = "ESPEnabled",
+				SectionKey = "ESPSection",
+				Type = "Toggle",
+				Config = {
+					Name = "Mostrar distância",
+					Default = true,
+					Save = true,
+					Callback = function(value) ESP.ShowDistance = value == true end,
 				},
 			},
 		},
@@ -590,7 +589,7 @@ return function(API)
 		{ Name = "Xerife + Hero", Filter = "Sheriff", Flag = "ESPSheriff", Default = true },
 		{ Name = "Inocentes", Filter = "Innocent", Flag = "ESPInnocent", Default = true },
 		{ Name = "Candy / Coin", Filter = "CandyCoin", Flag = "ESPCandyCoin", Default = false },
-		{ Name = "Arma caída parada", Filter = "Gun", Flag = "ESPGun", Default = true },
+		{ Name = "Arma caída", Filter = "Gun", Flag = "ESPGun", Default = true },
 	}
 
 	for _, option in ipairs(ESPOptions) do

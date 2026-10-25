@@ -10,6 +10,7 @@ return function(API)
 		ShowIdentity = true,
 		ShowUsername = true,
 		ShowSelf = true,
+		ShowDistance = true,
 		NameTextSizeNear = 12,
 		NameTextSizeFar = 17,
 		UsernameTextSizeMin = 10,
@@ -33,7 +34,6 @@ return function(API)
 		LastKnownRoles = setmetatable({}, { __mode = "k" }),
 		CoinMarkers = {},
 		GunMarkers = {},
-		GunMotion = setmetatable({}, { __mode = "k" }),
 		Filters = {
 			Murderer = true,
 			Sheriff = true,
@@ -41,7 +41,7 @@ return function(API)
 			Player = true,
 			Self = true,
 			CandyCoin = false,
-			Gun = false,
+			Gun = true,
 		},
 		Colors = {
 			Murderer = Color3.fromRGB(255, 65, 65),
@@ -129,7 +129,7 @@ return function(API)
 			destroyMarker(marker)
 		end
 		table.clear(self.PlayerMarkers); table.clear(self.LastKnownRoles); self:ClearMap(self.CoinMarkers); self:ClearMap(self.GunMarkers)
-		table.clear(self.GunMotion); local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
+		local playerGui = Player:FindFirstChildOfClass("PlayerGui"); local oldIndicators = playerGui and playerGui:FindFirstChild("ChorusESPIndicators")
 		if oldIndicators then destroySafely(oldIndicators) end
 	end
 
@@ -185,27 +185,36 @@ return function(API)
 	end
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
 		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true; local showIdentity = self.ShowIdentity == true and categoryEnabled
-		local showDistance = marker.IsSelf ~= true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
-		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local distanceHeight = 16
-		local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
+		local showDistance = self.ShowDistance == true and marker.IsSelf ~= true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled
+		local identitySize = getNameTextSize(self, distance); local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 3
+		local usernameHeight = usernameSize + 2; local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
 		marker.IdentityLabel.TextSize = identitySize; marker.IdentityLabel.Visible = showIdentity; marker.UsernameLabel.Text = username
 		marker.UsernameLabel.TextColor3 = labelColor
 		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; marker.DistanceLabel.Text = type(distance) == "number"
 				and distance == distance
 				and math.abs(distance) < math.huge
-				and string.format("%.1f m", math.max(distance, 0) * STUD_TO_METERS)
+				and (string.format("%.1f", math.max(distance, 0) * STUD_TO_METERS):gsub("%.", ",") .. "m")
 			or "-- m"
 		marker.DistanceLabel.TextColor3 = labelColor
-		marker.DistanceLabel.TextSize = math.max(9, usernameSize - 1); marker.DistanceLabel.Visible = showDistance
-		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
-		if showIdentity or showDistance then
-			local identityWidth = showIdentity and math.ceil(marker.IdentityLabel.TextBounds.X) + 8 or 0; local distanceWidth = showDistance and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0
-			local gap = showIdentity and showDistance and 6 or 0; local rowWidth = identityWidth + distanceWidth + gap
-			local rowHeight = math.max(showIdentity and identityHeight or 0, showDistance and distanceHeight or 0); local rowX = (260 - rowWidth) * 0.5
-			if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(rowX, offsetY); marker.IdentityLabel.Size = UDim2.fromOffset(identityWidth, rowHeight) end
-			if showDistance then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + identityWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
+		marker.DistanceLabel.TextSize = math.max(11, usernameSize); marker.DistanceLabel.Visible = showDistance
+		local primaryLabel, primaryHeight
+		if showIdentity then
+			if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
+			primaryLabel, primaryHeight = marker.IdentityLabel, identityHeight
+		elseif showUsername then
+			primaryLabel, primaryHeight = marker.UsernameLabel, usernameHeight
+		end
+		if primaryLabel then
+			local primaryWidth = math.ceil(primaryLabel.TextBounds.X) + 8; local distanceWidth = showDistance and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0
+			local gap = showDistance and 4 or 0; local rowWidth = primaryWidth + distanceWidth + gap
+			local rowHeight = math.max(primaryHeight, showDistance and (marker.DistanceLabel.TextSize + 2) or 0); local rowX = (260 - rowWidth) * 0.5
+			primaryLabel.Position = UDim2.fromOffset(rowX, offsetY); primaryLabel.Size = UDim2.fromOffset(primaryWidth, rowHeight)
+			if showDistance then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + primaryWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
 			offsetY += rowHeight
+		elseif showDistance then
+			local distanceWidth = math.ceil(marker.DistanceLabel.TextBounds.X) + 8; marker.DistanceLabel.Position = UDim2.fromOffset((260 - distanceWidth) * 0.5, offsetY)
+			marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, marker.DistanceLabel.TextSize + 2); offsetY += marker.DistanceLabel.TextSize + 2
 		end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
 	end
@@ -343,17 +352,6 @@ return function(API)
 		end
 		gunParts[part] = true
 	end
-	local function isGunStationary(part)
-		if not part or not part.Parent or not part:IsDescendantOf(Workspace) then return false end
-		local now = os.clock(); local position = part.Position
-		local ok, velocity = pcall(function() return part.AssemblyLinearVelocity end)
-		if not ok or not Util.IsFiniteVector3(position) or not Util.IsFiniteVector3(velocity) then return false end
-		local motion = ESP.GunMotion[part]
-		if not motion then ESP.GunMotion[part] = { Position = position, At = now, StillSince = now }; return false end
-		local elapsed = math.max(now - motion.At, 1 / 240); local measuredSpeed = (position - motion.Position).Magnitude / elapsed
-		if velocity.Magnitude > 1.5 or measuredSpeed > 1.5 then motion.StillSince = now end
-		motion.Position = position; motion.At = now; return now - motion.StillSince >= 0.2
-	end
 	function ESP:RefreshGuns()
 		local gunParts = {}; local visibleGunParts = {}
 		if self.Filters.Gun then
@@ -369,7 +367,6 @@ return function(API)
 		end
 		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for part in pairs(gunParts) do
-			if not isGunStationary(part) then continue end
 			visibleGunParts[part] = true; local marker = self.GunMarkers[part]
 			if not marker or not marker.Gui.Parent or not marker.Highlight.Parent then
 				if marker then destroyMarker(marker) end

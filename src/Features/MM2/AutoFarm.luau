@@ -19,7 +19,7 @@ return function(API)
 		LastProximitySweepAt = 0,
 		BagFull = false,
 		ResetWhenBagFull = false,
-		AvoidMurderer = true,
+		AvoidMurderer = false,
 		BagResetTriggered = false,
 		BagResetThread = nil,
 		MaintenanceConnection = nil,

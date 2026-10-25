@@ -16,12 +16,11 @@ return function(API)
 		local window = API.UI and API.UI.Window; local library = window and window.OrionLib
 		if library and type(library.MakeNotification) == "function" then pcall(library.MakeNotification, library, { Name = "Map", Content = content, Time = 4 }) end
 	end
-	local function getLocalContext()
-		local inRound = MatchService:GetRoundContext(); local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
+	local function getTeleportContext()
+		local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
 		if
-			not inRound
-			or Player:GetAttribute("Alive") ~= true
+			not character
+			or not character:IsDescendantOf(Services.Workspace)
 			or not humanoid
 			or humanoid.Health <= 0
 			or not root
@@ -29,7 +28,7 @@ return function(API)
 		then
 			return nil
 		end
-		return character, humanoid, root
+		return character
 	end
 	local function getMovementContext()
 		local inRound = MatchService:GetRoundContext(); local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -95,9 +94,9 @@ return function(API)
 		return options
 	end
 	function MapTools:TeleportToMap()
-		local inRound, map = MatchService:GetRoundContext(); local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if not inRound or not map then notify("A rodada ainda não começou."); return false end
-		if Player:GetAttribute("Alive") ~= true or not humanoid or humanoid.Health <= 0 then notify("Você precisa estar vivo para teleportar."); return false end
+		local _, map = MatchService:GetRoundContext(); local character = getTeleportContext()
+		if not map or not map.Parent then notify("Não há um mapa carregado no momento."); return false end
+		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
 		local spawns = map:FindFirstChild("Spawns"); local spawn = spawns and spawns:FindFirstChildWhichIsA("BasePart", true)
 		if not spawn then notify("Não encontrei um ponto de spawn no mapa."); return false end
 		local ok = pcall(function() character:PivotTo(spawn.CFrame) end)
@@ -131,8 +130,8 @@ return function(API)
 		return nil
 	end
 	function MapTools:TeleportToPlayer(target)
-		local character = getLocalContext()
-		if not character then notify("Entre em uma rodada e esteja vivo para usar o teleporte."); return false end
+		local character = getTeleportContext()
+		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
 		local targetCharacter, _, targetRoot = getLiveTarget(target, true)
 		if not targetCharacter then notify("Escolha outro jogador vivo."); return false end
 		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
@@ -140,7 +139,6 @@ return function(API)
 		notify("Teleportado até " .. target.DisplayName .. "."); return true
 	end
 	function MapTools:TeleportToRole(role)
-		if not MatchService:GetRoundContext() then notify("A rodada ainda não começou."); return false end
 		local target
 		if role == "GunHolder" then target = self:FindGunHolder()
 		else target = self:FindRoleTarget(role, role == "Sheriff") end
