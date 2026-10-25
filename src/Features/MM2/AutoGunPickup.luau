@@ -492,23 +492,17 @@ return function(API)
 		end
 		local touchFunction = getTouchFunction()
 		if not touchFunction then return false, "touch_unavailable" end
-		local originalCFrame = root.CFrame; local originalVelocity = root.AssemblyLinearVelocity; local originalAngularVelocity = root.AssemblyAngularVelocity
-		local contactCFrame = CFrame.new(gunPart.Position + Vector3.new(0, 2, 0)) * originalCFrame.Rotation; self.Touching = true
+		self.Touching = true
 		local ok, errorMessage = xpcall(function()
-			root.CFrame = contactCFrame; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero; pcall(touchFunction, root, gunPart, 0)
-			Services.RunService.Heartbeat:Wait()
-			if gunPart.Parent then pcall(touchFunction, root, gunPart, 1) end
+			touchFunction(root, gunPart, 0); Services.RunService.Heartbeat:Wait(); touchFunction(root, gunPart, 1); task.wait(0.3)
 		end, Util.FormatError)
-		pcall(function()
-			if root.Parent then root.CFrame = originalCFrame; root.AssemblyLinearVelocity = originalVelocity; root.AssemblyAngularVelocity = originalAngularVelocity end
-		end)
 		self.Touching = false
 		if not ok then error(errorMessage, 0) end
-		task.wait(0.3); local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
+		local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
 	end
 
-	-- PickupLoop
-	function Pickup:RunToGun(character, humanoid, root, container, map, gun, generation)
+	-- DirectPickupAttempt
+	function Pickup:AttemptPickup(character, humanoid, root, container, map, gun, generation)
 		if self:HasGun(character) then return "collected" end
 		local ready, activeCharacter, activeHumanoid, activeRoot, activeContainer, activeMap = self:GetActiveContext()
 		if
@@ -545,7 +539,7 @@ return function(API)
 		self.Busy = true; self.ActiveHumanoid = humanoid; self.ActiveRoot = root; self.NextAttemptAt = os.clock() + 2
 		local generation = self.Generation
 		local ok, outcome = xpcall(
-			function() return self:RunToGun(character, humanoid, root, container, map, gun, generation) end,
+			function() return self:AttemptPickup(character, humanoid, root, container, map, gun, generation) end,
 			Util.FormatError
 		)
 		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Busy = false
