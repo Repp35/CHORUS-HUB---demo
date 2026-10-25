@@ -3,8 +3,7 @@
 return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local Workspace = Services.Workspace; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
-	local Noclip = API.Features.Noclip; local Invisicam = API.Features.Invisicam; local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12
-	local PASS_THROUGH_DISTANCE = 1.5
+	local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12; local PASS_THROUGH_DISTANCE = 1.5
 
 	-- State
 	local Farm = {
@@ -96,11 +95,13 @@ return function(API)
 	-- Noclip
 	function Farm:EnableNoclip()
 		if self.NoclipLease then return end
-		self.NoclipLease = Noclip:Acquire(self)
+		local noclip = API.Features.Noclip
+		if noclip and type(noclip.Acquire) == "function" then self.NoclipLease = noclip:Acquire(self) == true end
 	end
 	function Farm:DisableNoclip()
 		if not self.NoclipLease then return end
-		self.NoclipLease = false; Noclip:Release(self)
+		self.NoclipLease = false; local noclip = API.Features.Noclip
+		if noclip and type(noclip.Release) == "function" then noclip:Release(self) end
 	end
 
 	-- CoinCollection
@@ -326,7 +327,8 @@ return function(API)
 		if self.Enabled or Runtime.ShuttingDown then return end
 		local character = Player.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); self.ActivationCharacter = character; self.ActivationRoot = root
 		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; table.clear(self.PassedCoins); self.PassedContainer = nil
-		self.RetryAfter = setmetatable({}, { __mode = "k" }); Invisicam:SetSource("AutoFarm", true)
+		self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
+		if invisicam and type(invisicam.SetSource) == "function" then pcall(invisicam.SetSource, invisicam, "AutoFarm", true) end
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -351,7 +353,8 @@ return function(API)
 	function Farm:Stop(restoreActivationPosition)
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
 		if thread then pcall(task.cancel, thread) end
-		self:CancelBagReset(); self:StopFarming(); self:StopProximityCollection(); Invisicam:SetSource("AutoFarm", false)
+		self:CancelBagReset(); self:StopFarming(); self:StopProximityCollection(); local invisicam = API.Features.Invisicam
+		if invisicam and type(invisicam.SetSource) == "function" then pcall(invisicam.SetSource, invisicam, "AutoFarm", false) end
 		if restoreActivationPosition == true then self:RestoreActivationPosition()
 		else self.ActivationCharacter = nil; self.ActivationRoot = nil; self.ActivationCFrame = nil end
 	end
