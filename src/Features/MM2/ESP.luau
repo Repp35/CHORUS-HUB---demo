@@ -185,7 +185,7 @@ return function(API)
 	end
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
 		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true; local showIdentity = self.ShowIdentity == true and categoryEnabled
-		local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
+		local showDistance = marker.IsSelf ~= true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled; local identitySize = getNameTextSize(self, distance)
 		local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 8; local usernameHeight = usernameSize + 6; local distanceHeight = 16
 		local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
@@ -197,15 +197,14 @@ return function(API)
 				and string.format("%.1f m", math.max(distance, 0) * STUD_TO_METERS)
 			or "-- m"
 		marker.DistanceLabel.TextColor3 = labelColor
-		marker.DistanceLabel.TextSize = math.max(9, usernameSize - 1); marker.DistanceLabel.Visible = categoryEnabled
+		marker.DistanceLabel.TextSize = math.max(9, usernameSize - 1); marker.DistanceLabel.Visible = showDistance
 		if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
-		if showIdentity or categoryEnabled then
-			local identityWidth = showIdentity and math.ceil(marker.IdentityLabel.TextBounds.X) + 8 or 0
-			local distanceWidth = categoryEnabled and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0; local gap = showIdentity and categoryEnabled and 6 or 0
-			local rowWidth = identityWidth + distanceWidth + gap; local rowHeight = math.max(showIdentity and identityHeight or 0, categoryEnabled and distanceHeight or 0)
-			local rowX = (260 - rowWidth) * 0.5
+		if showIdentity or showDistance then
+			local identityWidth = showIdentity and math.ceil(marker.IdentityLabel.TextBounds.X) + 8 or 0; local distanceWidth = showDistance and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0
+			local gap = showIdentity and showDistance and 6 or 0; local rowWidth = identityWidth + distanceWidth + gap
+			local rowHeight = math.max(showIdentity and identityHeight or 0, showDistance and distanceHeight or 0); local rowX = (260 - rowWidth) * 0.5
 			if showIdentity then marker.IdentityLabel.Position = UDim2.fromOffset(rowX, offsetY); marker.IdentityLabel.Size = UDim2.fromOffset(identityWidth, rowHeight) end
-			if categoryEnabled then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + identityWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
+			if showDistance then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + identityWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
 			offsetY += rowHeight
 		end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
@@ -273,7 +272,8 @@ return function(API)
 					if marker then destroyMarker(marker) end
 					marker = self:CreatePlayerMarker(target, character, root, color); self.PlayerMarkers[target] = marker
 				end
-				marker.Category = category; marker.ColorCategory = colorCategory; marker.Role = roleCategory and role or nil; self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
+				marker.Category = category; marker.ColorCategory = colorCategory; marker.Role = roleCategory and role or nil; marker.IsSelf = isSelf
+				self:UpdatePlayerLabels(marker, target.Name, identity, color, distance)
 				marker.Highlight.FillColor = color
 				marker.Highlight.FillTransparency = self.FillTransparency
 				marker.Highlight.OutlineColor = color
