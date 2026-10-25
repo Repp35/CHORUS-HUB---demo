@@ -16,6 +16,7 @@ return function(API)
 		RoleDataAt = 0,
 		NextRoleRefreshAt = 0,
 		LastShotAt = 0,
+		NextRoleWarningAt = 0,
 		HudVisible = false,
 		HudGeneration = 0,
 		EffectGeneration = 0,
@@ -46,6 +47,10 @@ return function(API)
 		end
 		return character, humanoid, root
 	end
+	local function notify(content)
+		local window = API.UI and API.UI.Window; local library = window and window.OrionLib
+		if library and type(library.MakeNotification) == "function" then pcall(library.MakeNotification, library, { Name = "Shoot Murder", Content = content, Time = 4 }) end
+	end
 	function ShootMurder:RefreshRoleData(force)
 		local now = os.clock()
 		if not force and now < self.NextRoleRefreshAt then return self.RoleData end
@@ -53,6 +58,17 @@ return function(API)
 		if ok and type(roleData) == "table" and next(roleData) ~= nil then self.RoleData = roleData; self.RoleDataAt = now
 		elseif not self.RoleData or now - self.RoleDataAt > 2 then self.RoleData = nil; self.RoleDataAt = 0 end
 		return self.RoleData
+	end
+	function ShootMurder:HasSheriffRole()
+		local profile = self.RoleData and self.RoleData[Player.Name]; return type(profile) == "table"
+			and (profile.Role == "Sheriff" or profile.Role == "Hero")
+			and profile.Dead ~= true
+			and profile.Killed ~= true
+	end
+	function ShootMurder:WarnRoleRequired()
+		local now = os.clock()
+		if now < self.NextRoleWarningAt then return end
+		self.NextRoleWarningAt = now + 10; notify("Você precisa ser Xerife ou Herói para atirar.")
 	end
 	function ShootMurder:GetLocalContext()
 		local inRound = MatchService:GetRoundContext()
@@ -229,6 +245,11 @@ return function(API)
 	function ShootMurder:TryShoot(automatic)
 		local now = os.clock()
 		if now - self.LastShotAt < SHOT_COOLDOWN then return false end
+		if not automatic then self:RefreshRoleData(true) end
+		if not self:HasSheriffRole() then
+			if not automatic then self:WarnRoleRequired() end
+			return false
+		end
 		local localCharacter, humanoid, localRoot = self:GetLocalContext()
 		if not localCharacter then return false end
 		local target, targetCharacter, _, targetRoot = self:GetMurderer()
@@ -258,13 +279,13 @@ return function(API)
 			self.RoleData = nil; self.RoleDataAt = 0; self.NextRoleRefreshAt = 0; self:SetHudVisible(false)
 			return
 		end
-		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local isSheriff = localCharacter ~= nil; self:SetHudVisible(self.ManualEnabled and isSheriff)
-		if self.AutoEnabled and isSheriff then self:TryShoot(true) end
+		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local canShoot = localCharacter ~= nil and self:HasSheriffRole(); self:SetHudVisible(self.ManualEnabled)
+		if self.AutoEnabled and canShoot then self:TryShoot(true) end
 	end
 	function ShootMurder:SetManualEnabled(enabled)
 		self.ManualEnabled = enabled == true
-		if self.ManualEnabled then self:SetHudVisible(self:GetLocalContext() ~= nil)
-		else self:SetHudVisible(false) end
+		if not self.ManualEnabled then self:SetHudVisible(false); return end
+		self:RefreshRoleData(true); self:SetHudVisible(MatchService:GetRoundContext() ~= nil)
 	end
 	function ShootMurder:SetAutoEnabled(enabled) self.AutoEnabled = enabled == true end
 	function ShootMurder:SetWaitForKnife(enabled) self.WaitForKnife = enabled == true end
