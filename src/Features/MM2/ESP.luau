@@ -23,6 +23,7 @@ return function(API)
 		RenderConnection = nil,
 		PulseInterval = 5,
 		LastPulseAt = 0,
+		PulseSnapshot = nil,
 		RepairScheduled = false,
 		RoleRemote = nil,
 		RoleChangedConnection = nil,
@@ -402,12 +403,17 @@ return function(API)
 	end
 
 	-- Refresh
-	function ESP:Refresh()
+	function ESP:Refresh(cachedRolesOnly)
 		local inMatch, _, container = MatchService:GetRoundContext(); self.InRound = inMatch == true
 		if not inMatch then self.RoleData = nil; self.RoleDataAt = 0; table.clear(self.LastKnownRoles) end
 		local needsRoleData = inMatch
 			and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
-		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
+		local roleData
+		if needsRoleData then
+			if cachedRolesOnly then roleData = self.RoleData
+			else roleData = self:GetRoleData() end
+		end
+		self:RefreshPlayers(roleData, inMatch)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
 		if self.Filters.Gun then self:RefreshGuns()
@@ -535,21 +541,38 @@ return function(API)
 	-- Lifecycle
 	function ESP:Start()
 		if self.Enabled or Runtime.ShuttingDown then return end
-		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
-		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
+		local pulseSnapshot = self.PulseSnapshot; self.PulseSnapshot = nil; self:ClearAll()
+		if pulseSnapshot then
+			self.RoleData = pulseSnapshot.RoleData; self.RoleDataAt = pulseSnapshot.RoleDataAt; self.InRound = pulseSnapshot.InRound
+			for target, role in pairs(pulseSnapshot.LastKnownRoles) do
+				self.LastKnownRoles[target] = role
+			end
+		end
+		self.Enabled = true; self:ConnectRoleChanges()
+		local refreshed, refreshError = xpcall(function() self:Refresh(pulseSnapshot ~= nil) end, Util.FormatError)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
 		self.LastPulseAt = os.clock()
 		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
 			local now = os.clock()
 			if not self.Enabled or now - self.LastPulseAt < self.PulseInterval then return end
-			self.LastPulseAt = now; local registries = API.UI and API.UI.Registries; local registry = registries and registries.Visuals
-			local node = registry and registry.ByFlag and registry.ByFlag.ESPEnabled; local toggle = node and node.Control
+			local needsRoleData = self.InRound
+				and (self.ShowSelf or self.Filters.Murderer or self.Filters.Sheriff or self.Filters.Innocent)
+			if needsRoleData and not self.RoleData then return end
+			local registries = API.UI and API.UI.Registries; local registry = registries and registries.Visuals; local node = registry and registry.ByFlag and registry.ByFlag.ESPEnabled
+			local toggle = node and node.Control
 			if not toggle or toggle.Value ~= true or type(toggle.Set) ~= "function" then return end
+			self.LastPulseAt = now
+			self.PulseSnapshot = {
+				RoleData = self.RoleData,
+				RoleDataAt = self.RoleDataAt,
+				InRound = self.InRound,
+				LastKnownRoles = table.clone(self.LastKnownRoles),
+			}
 			local turnedOff, offError = pcall(toggle.Set, toggle, false)
-			if not turnedOff then self:ReportError("desativação do ESP", offError); return end
-			if toggle.Value ~= false then return end
+			if not turnedOff then self.PulseSnapshot = nil; self:ReportError("desativação do ESP", offError); return end
+			if toggle.Value ~= false then self.PulseSnapshot = nil; return end
 			local turnedOn, onError = pcall(toggle.Set, toggle, true)
-			if not turnedOn then self:ReportError("reativação do ESP", onError) end
+			if not turnedOn then self.PulseSnapshot = nil; self:ReportError("reativação do ESP", onError) end
 		end))
 		local thread
 		thread = task.spawn(function()
@@ -574,7 +597,8 @@ return function(API)
 			pcall(function() self.RoleChangedConnection:Disconnect() end)
 			self.RoleChangedConnection = nil
 		end
-		self:ClearAll(); self.RoleData = nil; self.RoleDataAt = 0
+		self:ClearAll()
+		if not self.PulseSnapshot then self.RoleData = nil; self.RoleDataAt = 0 end
 	end
 	Runtime:OnShutdown(function() ESP:Stop() end)
 
