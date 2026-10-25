@@ -542,12 +542,14 @@ return function(API)
 		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
 			local now = os.clock()
 			if not self.Enabled or now - self.LastPulseAt < self.PulseInterval then return end
-			self.LastPulseAt = now
-			local ok, errorMessage = xpcall(function()
-				self.Enabled = false; self:HideMarkersForPreRender(); self.Enabled = true; self:ReapplyMarkers()
-			end, Util.FormatError)
-			if not self.Enabled then self.Enabled = true end
-			if not ok then self:ReportError("ciclo do ESP", errorMessage) end
+			self.LastPulseAt = now; local registries = API.UI and API.UI.Registries; local registry = registries and registries.Visuals
+			local node = registry and registry.ByFlag and registry.ByFlag.ESPEnabled; local toggle = node and node.Control
+			if not toggle or toggle.Value ~= true or type(toggle.Set) ~= "function" then return end
+			local turnedOff, offError = pcall(toggle.Set, toggle, false)
+			if not turnedOff then self:ReportError("desativação do ESP", offError); return end
+			if toggle.Value ~= false then return end
+			local turnedOn, onError = pcall(toggle.Set, toggle, true)
+			if not turnedOn then self:ReportError("reativação do ESP", onError) end
 		end))
 		local thread
 		thread = task.spawn(function()
