@@ -16,6 +16,7 @@ return function()
 					{ Name = "ESP", Path = "src/Features/MM2/ESP" },
 					{ Name = "AutoFarm", Path = "src/Features/MM2/AutoFarm" },
 					{ Name = "AutoGunPickup", Path = "src/Features/MM2/AutoGunPickup" },
+					{ Name = "ShootMurder", Path = "src/Features/MM2/ShootMurder" },
 				},
 			},
 			Universal = {

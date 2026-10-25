@@ -6,7 +6,7 @@ return function(API)
 	local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local Importance = ControlRegistry.Importance; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip
 	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
-	local AutoGunPickup = API.Features.AutoGunPickup
+	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder
 
 	-- PlayerTeleport
 	local function notifyTeleport(content)
@@ -96,6 +96,80 @@ return function(API)
 	local Settings = {}
 	local ControlGroups = {
 		Combat = {
+			{ Key = "ShootMurderSection", Type = "Section", Config = { Name = "Shoot Murder" } },
+			{
+				Key = "ManualShootMurder",
+				Flag = "ManualShootMurder",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.Normal,
+				Type = "Toggle",
+				Config = {
+					Name = "Manual Shoot Murder",
+					Default = false,
+					Save = true,
+					Callback = function(value) ShootMurder:SetManualEnabled(value) end,
+				},
+			},
+			{
+				Key = "ManualShootMurderAccuracy",
+				Flag = "ManualShootMurderAccuracy",
+				ParentFlag = "ManualShootMurder",
+				SectionKey = "ShootMurderSection",
+				Type = "Slider",
+				Config = {
+					Name = "Precisão manual",
+					Min = 0,
+					Max = 100,
+					Default = 100,
+					Increment = 5,
+					ValueName = "%",
+					Save = true,
+					Callback = function(value) ShootMurder:SetManualAccuracy(value) end,
+				},
+			},
+			{
+				Key = "AutoShootMurder",
+				Flag = "AutoShootMurder",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.High,
+				Type = "Toggle",
+				Config = {
+					Name = "Auto Shoot Murder",
+					Default = false,
+					Save = true,
+					Callback = function(value) ShootMurder:SetAutoEnabled(value) end,
+				},
+			},
+			{
+				Key = "AutoShootMurderAccuracy",
+				Flag = "AutoShootMurderAccuracy",
+				ParentFlag = "AutoShootMurder",
+				SectionKey = "ShootMurderSection",
+				Type = "Slider",
+				Config = {
+					Name = "Precisão automática",
+					Min = 0,
+					Max = 100,
+					Default = 100,
+					Increment = 5,
+					ValueName = "%",
+					Save = true,
+					Callback = function(value) ShootMurder:SetAutoAccuracy(value) end,
+				},
+			},
+			{
+				Key = "ShootMurderOffscreen",
+				Flag = "ShootMurderOffscreen",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.Normal,
+				Type = "Toggle",
+				Config = {
+					Name = "Acertar fora da tela",
+					Default = true,
+					Save = true,
+					Callback = function(value) ShootMurder:SetAllowOffscreen(value) end,
+				},
+			},
 			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
 			{
 				Key = "AutoGunPickup",
