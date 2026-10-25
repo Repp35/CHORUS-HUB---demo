@@ -327,19 +327,8 @@ local bootstrapThread = task.defer(function()
 		if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then warn("[Chorus Loader] " .. tostring(errorMessage)) end
 	else
 		local scriptInfo = API.Config and API.Config.ScriptInfo
-		if type(scriptInfo) == "table" then
-			print(
-				string.format(
-					"[%s | v%s] Autor: %s | Executor: %s",
-					scriptInfo.Name,
-					scriptInfo.Version,
-					scriptInfo.Author,
-					ExecutorName
-				)
-			)
-		else
-			print("[Chorus Loader] Executor: " .. ExecutorName)
-		end
+		if type(scriptInfo) == "table" then print(string.format("[%s] Autor: %s | Executor: %s", scriptInfo.Name, scriptInfo.Author, ExecutorName))
+		else print("[Chorus Loader] Executor: " .. ExecutorName) end
 	end
 	if rawget(SharedEnvironment, BOOTSTRAP_KEY) == BootstrapState then
 		BootstrapState.Completed = ok; BootstrapState.Thread = nil; table.clear(BootstrapState.Tasks); rawset(SharedEnvironment, BOOTSTRAP_KEY, nil)
