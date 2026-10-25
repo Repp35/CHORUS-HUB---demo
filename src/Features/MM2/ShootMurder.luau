@@ -65,6 +65,9 @@ return function(API)
 			and profile.Dead ~= true
 			and profile.Killed ~= true
 	end
+	function ShootMurder:IsLocalMurderer()
+		local profile = self.RoleData and self.RoleData[Player.Name]; return type(profile) == "table" and profile.Role == "Murderer"
+	end
 	function ShootMurder:WarnRoleRequired()
 		local now = os.clock()
 		if now < self.NextRoleWarningAt then return end
@@ -279,13 +282,14 @@ return function(API)
 			self.RoleData = nil; self.RoleDataAt = 0; self.NextRoleRefreshAt = 0; self:SetHudVisible(false)
 			return
 		end
-		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local canShoot = localCharacter ~= nil and self:HasSheriffRole(); self:SetHudVisible(self.ManualEnabled)
+		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local canShoot = localCharacter ~= nil and self:HasSheriffRole()
+		self:SetHudVisible(self.ManualEnabled and not self:IsLocalMurderer())
 		if self.AutoEnabled and canShoot then self:TryShoot(true) end
 	end
 	function ShootMurder:SetManualEnabled(enabled)
 		self.ManualEnabled = enabled == true
 		if not self.ManualEnabled then self:SetHudVisible(false); return end
-		self:RefreshRoleData(true); self:SetHudVisible(MatchService:GetRoundContext() ~= nil)
+		self:RefreshRoleData(true); self:SetHudVisible(MatchService:GetRoundContext() ~= nil and not self:IsLocalMurderer())
 	end
 	function ShootMurder:SetAutoEnabled(enabled) self.AutoEnabled = enabled == true end
 	function ShootMurder:SetWaitForKnife(enabled) self.WaitForKnife = enabled == true end

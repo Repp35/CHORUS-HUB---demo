@@ -198,7 +198,7 @@ return function(API)
 		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; local distanceText = type(distance) == "number"
 				and distance == distance
 				and math.abs(distance) < math.huge
-				and (string.format("%.2f", math.max(distance, 0) * STUD_TO_METERS):gsub("%.", ",") .. "m")
+				and (tostring(math.floor(math.max(distance, 0) * STUD_TO_METERS)) .. "m")
 			or "-- m"
 		marker.DistanceLabel.Text = distanceText
 		marker.DistanceLabel.TextColor3 = labelColor
