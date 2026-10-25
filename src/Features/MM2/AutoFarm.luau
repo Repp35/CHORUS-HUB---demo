@@ -4,6 +4,7 @@ return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local Workspace = Services.Workspace; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
 	local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12; local PASS_THROUGH_DISTANCE = 1.5; local ROLE_REFRESH_INTERVAL = 0.5
+	local AVOID_MURDERER_COIN_DISTANCE = 45; local AVOID_MURDERER_PLAYER_DISTANCE = 40
 	local NO_ROLE_VALUES =
 		{ unknown = true, none = true, norole = true, sempapel = true, unassigned = true, waiting = true, lobby = true }
 
@@ -18,6 +19,7 @@ return function(API)
 		LastProximitySweepAt = 0,
 		BagFull = false,
 		ResetWhenBagFull = false,
+		AvoidMurderer = true,
 		BagResetTriggered = false,
 		BagResetThread = nil,
 		MaintenanceConnection = nil,
@@ -34,6 +36,8 @@ return function(API)
 		LastErrorAt = 0,
 		RoleData = nil,
 		NextRoleRefreshAt = 0,
+		ThreatRoot = nil,
+		ThreatRefreshAt = 0,
 	}
 
 	-- TouchSupport
@@ -59,6 +63,42 @@ return function(API)
 		local roleData = self:GetRoleData(); local profile = roleData and roleData[Player.Name]; local role = type(profile) == "table" and profile.Role or nil
 		if type(role) ~= "string" or profile.Dead == true or profile.Killed == true then return false end
 		local normalizedRole = string.lower(role):gsub("[%s_%-]", ""); return normalizedRole ~= "" and not NO_ROLE_VALUES[normalizedRole]
+	end
+	function Farm:GetMurdererRoot()
+		if not self.AvoidMurderer then return nil end
+		local now = os.clock()
+		if now < self.ThreatRefreshAt then return self.ThreatRoot and self.ThreatRoot.Parent and self.ThreatRoot or nil end
+		self.ThreatRefreshAt = now + 0.2; self.ThreatRoot = nil; local roleData = self:GetRoleData(); local localProfile = roleData and roleData[Player.Name]
+		if type(localProfile) == "table" and localProfile.Role == "Murderer" then return nil end
+		if type(roleData) ~= "table" then return nil end
+		for name, profile in pairs(roleData) do
+			if
+				name ~= Player.Name
+				and type(profile) == "table"
+				and profile.Role == "Murderer"
+				and profile.Dead ~= true
+				and profile.Killed ~= true
+			then
+				local target = Services.Players:FindFirstChild(name); local character = target and target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if
+					target
+					and target:GetAttribute("Alive") == true
+					and humanoid
+					and humanoid.Health > 0
+					and root
+					and root:IsA("BasePart")
+				then
+					self.ThreatRoot = root; return root
+				end
+			end
+		end
+		return nil
+	end
+	function Farm:IsNearMurderer(position, threshold)
+		if not self.AvoidMurderer or not Util.IsFiniteVector3(position) then return false end
+		local threatRoot = self:GetMurdererRoot(); return threatRoot ~= nil
+			and (threatRoot.Position - position).Magnitude < (threshold or AVOID_MURDERER_COIN_DISTANCE)
 	end
 	function Farm:GetActiveContext()
 		if Player:GetAttribute("Alive") ~= true then self.RoleData = nil; self.NextRoleRefreshAt = 0; return false end
@@ -152,6 +192,7 @@ return function(API)
 			or Player:GetAttribute("Alive") ~= true
 			or not root
 			or not root.Parent
+			or self:IsNearMurderer(root.Position, AVOID_MURDERER_PLAYER_DISTANCE)
 			or self.PassedCoins[coin]
 			or not CoinService:IsCollectable(coin, container)
 		then
@@ -320,6 +361,14 @@ return function(API)
 				and root.Parent
 				and os.clock() < deadline
 			do
+				if
+					self:IsNearMurderer(root.Position, AVOID_MURDERER_PLAYER_DISTANCE)
+					or self:IsNearMurderer(coinPosition, AVOID_MURDERER_COIN_DISTANCE)
+				then
+					pcall(function() tween:Cancel() end)
+					if self.Tween == tween then self.Tween = nil end
+					self.RetryAfter[coin] = os.clock() + 0.6; return
+				end
 				local inMatch, activeCharacter, activeHumanoid, activeRoot, activeContainer = self:GetActiveContext()
 				if
 					not inMatch
@@ -370,7 +419,8 @@ return function(API)
 		if self.Enabled or Runtime.ShuttingDown then return end
 		local character = Player.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); self.ActivationCharacter = character; self.ActivationRoot = root
 		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; self.RoleData = nil; self.NextRoleRefreshAt = 0
-		table.clear(self.PassedCoins); self.PassedContainer = nil; self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
+		self.ThreatRoot = nil; self.ThreatRefreshAt = 0; table.clear(self.PassedCoins); self.PassedContainer = nil
+		self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
 		if invisicam and type(invisicam.SetSource) == "function" then pcall(invisicam.SetSource, invisicam, "AutoFarm", true) end
 		local thread
 		thread = task.spawn(function()
@@ -379,9 +429,15 @@ return function(API)
 					local inMatch, character, humanoid, root, container = self:GetActiveContext()
 					if not inMatch then self:StopFarming(); task.wait(0.3); return end
 					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
+					if self:IsNearMurderer(root.Position, AVOID_MURDERER_PLAYER_DISTANCE) then self:StopFarming(); task.wait(0.3); return end
 					if self.PassedContainer ~= container then table.clear(self.PassedCoins); self.PassedContainer = container end
-					local coin, _, coinPosition =
-						MapService:GetNearestCoin(container, root.Position, self.RetryAfter, self.PassedCoins)
+					local coin, _, coinPosition = MapService:GetNearestCoin(
+						container,
+						root.Position,
+						self.RetryAfter,
+						self.PassedCoins,
+						function(_, position) return not self:IsNearMurderer(position, AVOID_MURDERER_COIN_DISTANCE) end
+					)
 					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
 					else self:StopFarming(); task.wait(0.25) end
 				end, Util.FormatError)

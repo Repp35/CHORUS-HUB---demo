@@ -15,6 +15,8 @@ return function()
 				Features = {
 					{ Name = "ESP", Path = "src/Features/MM2/ESP" },
 					{ Name = "AutoFarm", Path = "src/Features/MM2/AutoFarm" },
+					{ Name = "Alerts", Path = "src/Features/MM2/Alerts" },
+					{ Name = "MapTools", Path = "src/Features/MM2/MapTools" },
 					{ Name = "AutoGunPickup", Path = "src/Features/MM2/AutoGunPickup" },
 					{ Name = "ShootMurder", Path = "src/Features/MM2/ShootMurder" },
 					{ Name = "RoleNameDebug", Path = "Testes/RoleNameDebug" },
@@ -23,6 +25,7 @@ return function()
 			Universal = {
 				Features = {
 					{ Name = "DynamicSpeed", Path = "src/Features/Universal/DynamicSpeed" },
+					{ Name = "Gravity", Path = "src/Features/Universal/Gravity" },
 					{ Name = "Noclip", Path = "src/Features/Universal/Noclip" },
 					{ Name = "Invisicam", Path = "src/Features/Universal/Invisicam" },
 					{ Name = "InfiniteJump", Path = "src/Features/Universal/InfiniteJump" },

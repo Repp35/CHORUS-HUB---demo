@@ -1,96 +1,13 @@
 -- [[ settings ]]
 
 return function(API)
-	local Util = API.Util; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window; local UI = WindowContext.UI
-	local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config; local Player = API.Player
-	local Services = API.Roblox; local MatchService = API.Services.Match; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
+	local Util = API.Util; local Runtime = API.Runtime; local ControlRegistry = API:Require("src/UI/ControlRegistry"); local WindowContext = API.UI.Window
+	local UI = WindowContext.UI; local Tabs = WindowContext.Tabs; local OrionLib = WindowContext.OrionLib; local Config = API.Config
+	local Player = API.Player; local Services = API.Roblox; local Farm = API.Features.AutoFarm; local ESP = API.Features.ESP
 	local Importance = ControlRegistry.Importance; local AntiAFK = API.Features.AntiAFK; local AntiFling = API.Features.AntiFling; local Noclip = API.Features.Noclip
 	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
-	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder
-
-	-- PlayerTeleport
-	local function notifyTeleport(content)
-		if type(OrionLib.MakeNotification) == "function" then pcall(OrionLib.MakeNotification, OrionLib, { Name = "Teleport", Content = content, Time = 4 }) end
-	end
-	local function findAliveRoleTarget(roleData, wantedRole, allowHero)
-		for playerName, profile in pairs(roleData) do
-			local roleMatches = type(profile) == "table"
-				and (profile.Role == wantedRole or allowHero and wantedRole == "Sheriff" and profile.Role == "Hero")
-			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil; local character = target and target.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
-			if
-				roleMatches
-				and target
-				and target ~= Player
-				and target:GetAttribute("Alive") == true
-				and profile.Dead ~= true
-				and profile.Killed ~= true
-				and humanoid
-				and humanoid.Health > 0
-				and root
-				and root:IsA("BasePart")
-				and character:IsDescendantOf(Services.Workspace)
-			then
-				return target, root
-			end
-		end
-		return nil
-	end
-	local function teleportToPlayer(target, targetRoot)
-		local inRound = MatchService:GetRoundContext(); local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if
-			not inRound
-			or Player:GetAttribute("Alive") ~= true
-			or not humanoid
-			or humanoid.Health <= 0
-			or not root
-			or not root:IsA("BasePart")
-			or not character:IsDescendantOf(Services.Workspace)
-		then
-			notifyTeleport("Entre em uma partida e esteja vivo para usar o teleporte."); return false
-		end
-		if not target or not targetRoot or not targetRoot:IsDescendantOf(Services.Workspace) then notifyTeleport("Não existe outro jogador vivo com esse papel para teleportar."); return false end
-		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
-		if not ok then notifyTeleport("Não foi possível teleportar até esse jogador."); return false end
-		notifyTeleport("Teleportado até " .. target.DisplayName .. "."); return true
-	end
-	local function teleportToRole(role, allowHero)
-		local inRound = MatchService:GetRoundContext()
-		if not inRound then notifyTeleport("A partida ainda não começou."); return end
-		local roleData = MatchService:GetPlayerData()
-		if not roleData then notifyTeleport("Não foi possível consultar os papéis desta partida."); return end
-		local target, targetRoot = findAliveRoleTarget(roleData, role, allowHero); teleportToPlayer(target, targetRoot)
-	end
-	local function teleportToFarthestInnocent()
-		local inRound = MatchService:GetRoundContext()
-		if not inRound then notifyTeleport("A partida ainda não começou."); return end
-		local roleData = MatchService:GetPlayerData()
-		if not roleData then notifyTeleport("Não foi possível consultar os papéis desta partida."); return end
-		local _, murdererRoot = findAliveRoleTarget(roleData, "Murderer")
-		if not murdererRoot then notifyTeleport("Não encontrei o Murderer vivo."); return end
-		local farthestTarget, farthestRoot, farthestDistance
-		for playerName, profile in pairs(roleData) do
-			local target = type(playerName) == "string" and Services.Players:FindFirstChild(playerName) or nil
-			if target and target ~= Player and type(profile) == "table" and profile.Role == "Innocent" then
-				local character = target.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
-				if
-					target:GetAttribute("Alive") == true
-					and profile.Dead ~= true
-					and profile.Killed ~= true
-					and humanoid
-					and humanoid.Health > 0
-					and root
-					and root:IsA("BasePart")
-					and character:IsDescendantOf(Services.Workspace)
-				then
-					local distance = (root.Position - murdererRoot.Position).Magnitude
-					if not farthestDistance or distance > farthestDistance then farthestTarget, farthestRoot, farthestDistance = target, root, distance end
-				end
-			end
-		end
-		teleportToPlayer(farthestTarget, farthestRoot)
-	end
+	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder; local Gravity = API.Features.Gravity; local MapTools = API.Features.MapTools
+	local Alerts = API.Features.Alerts; local selectedPlayerName = "Nenhum"
 
 	-- ControlGroups
 	local Settings = {}
@@ -158,6 +75,34 @@ return function(API)
 				},
 			},
 			{
+				Key = "LegitSheriff",
+				Flag = "LegitSheriff",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.Normal,
+				Type = "Toggle",
+				Config = {
+					Name = "Legit (esperar o Murderer sacar a faca)",
+					Description = "Auto e manual shoot só tentam atirar depois que a faca estiver equipada pelo Murderer.",
+					Default = false,
+					Save = true,
+					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
+				},
+			},
+			{
+				Key = "KillCheaters",
+				Flag = "KillCheaters",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.Normal,
+				Type = "Toggle",
+				Config = {
+					Name = "Kill Cheaters",
+					Description = "Se o Murderer estiver fora dos limites do mapa, tenta atirar somente como Xerife e com linha de visão limpa.",
+					Default = false,
+					Save = true,
+					Callback = function(value) ShootMurder:SetKillCheatersEnabled(value) end,
+				},
+			},
+			{
 				Key = "ShootMurderOffscreen",
 				Flag = "ShootMurderOffscreen",
 				SectionKey = "ShootMurderSection",
@@ -220,6 +165,19 @@ return function(API)
 				},
 			},
 			{
+				Key = "AvoidMurdererCoins",
+				SectionKey = "CoinCollectionSection",
+				Flag = "AvoidMurdererCoins",
+				ParentFlag = "AutoFarm",
+				Type = "Toggle",
+				Config = {
+					Name = "Evitar moedas perto do Murderer",
+					Default = true,
+					Save = true,
+					Callback = function(value) Farm.AvoidMurderer = value == true end,
+				},
+			},
+			{
 				Key = "ResetWhenBagFull",
 				SectionKey = "CoinCollectionSection",
 				Flag = "ResetWhenBagFull",
@@ -247,6 +205,80 @@ return function(API)
 					ValueName = "studs/s",
 					Save = true,
 					Callback = function(value) Farm.Speed = tonumber(value) or Farm.Speed end,
+				},
+			},
+		},
+		Map = {
+			{ Key = "MapTravelSection", Type = "Section", Config = { Name = "Teleporte e jogadores" } },
+			{
+				Key = "TeleportToMap",
+				SectionKey = "MapTravelSection",
+				Importance = Importance.High,
+				Type = "Button",
+				Config = { Name = "Teleportar para o mapa", Callback = function() MapTools:TeleportToMap() end },
+			},
+			{
+				Key = "TeleportToMurderer",
+				SectionKey = "MapTravelSection",
+				Type = "Button",
+				Config = {
+					Name = "Teleportar no Murderer",
+					Callback = function() MapTools:TeleportToRole("Murderer") end,
+				},
+			},
+			{
+				Key = "TeleportToGunHolder",
+				SectionKey = "MapTravelSection",
+				Type = "Button",
+				Config = {
+					Name = "Teleportar em quem segura a arma",
+					Callback = function() MapTools:TeleportToRole("GunHolder") end,
+				},
+			},
+			{
+				Key = "MapTargetPlayer",
+				Flag = "MapTargetPlayer",
+				SectionKey = "MapTravelSection",
+				Type = "Dropdown",
+				Config = {
+					Name = "Jogador",
+					Options = MapTools:GetPlayerOptions(),
+					Default = "Nenhum",
+					Callback = function(value) selectedPlayerName = value end,
+				},
+			},
+			{
+				Key = "TeleportToPlayer",
+				SectionKey = "MapTravelSection",
+				Type = "Button",
+				Config = {
+					Name = "Teleportar até jogador",
+					Callback = function()
+						MapTools:TeleportToPlayer(Services.Players:FindFirstChild(selectedPlayerName))
+					end,
+				},
+			},
+			{
+				Key = "WalkToPlayer",
+				SectionKey = "MapTravelSection",
+				Type = "Button",
+				Config = {
+					Name = "Caminhar até jogador",
+					Callback = function() MapTools:WalkToPlayer(Services.Players:FindFirstChild(selectedPlayerName)) end,
+				},
+			},
+			{ Key = "MapVotingSection", Type = "Section", Config = { Name = "Votação de mapas" } },
+			{
+				Key = "FavoriteMap",
+				Flag = "FavoriteMap",
+				SectionKey = "MapVotingSection",
+				Type = "Dropdown",
+				Config = {
+					Name = "Mapa favorito para votar",
+					Options = MapTools:GetFavoriteMapOptions(),
+					Default = "Nenhum",
+					Save = true,
+					Callback = function(value) MapTools:SetFavoriteMaps(value) end,
 				},
 			},
 		},
@@ -450,30 +482,35 @@ return function(API)
 					Callback = function(value) Fly:SetSpeed(value) end,
 				},
 			},
-			{ Key = "TeleportSection", Type = "Section", Config = { Name = "Teleport" } },
+			{ Key = "GravitySection", Type = "Section", Config = { Name = "Gravidade" } },
 			{
-				Key = "TeleportFarthestInnocent",
-				Importance = Importance.High,
-				SectionKey = "TeleportSection",
-				Type = "Button",
+				Key = "GravityEnabled",
+				Flag = "GravityEnabled",
+				SectionKey = "GravitySection",
+				Type = "Toggle",
 				Config = {
-					Name = "Teleportar no inocente mais longe do Murderer",
-					Callback = teleportToFarthestInnocent,
+					Name = "Gravidade personalizada",
+					Default = false,
+					Save = true,
+					Callback = function(value) Gravity:SetEnabled(value) end,
 				},
 			},
 			{
-				Key = "TeleportSheriff",
-				Importance = Importance.Normal,
-				SectionKey = "TeleportSection",
-				Type = "Button",
-				Config = { Name = "Teleportar no Xerife", Callback = function() teleportToRole("Sheriff", true) end },
-			},
-			{
-				Key = "TeleportMurderer",
-				Importance = Importance.Normal,
-				SectionKey = "TeleportSection",
-				Type = "Button",
-				Config = { Name = "Teleportar no Murderer", Callback = function() teleportToRole("Murderer") end },
+				Key = "GravityValue",
+				Flag = "GravityValue",
+				ParentFlag = "GravityEnabled",
+				SectionKey = "GravitySection",
+				Type = "Slider",
+				Config = {
+					Name = "Gravidade",
+					Min = 0,
+					Max = 400,
+					Default = Gravity.DefaultValue,
+					Increment = 1,
+					ValueName = "studs/s²",
+					Save = true,
+					Callback = function(value) Gravity:SetValue(value) end,
+				},
 			},
 			{ Key = "ActionsSection", Type = "Section", Config = { Name = "Ações" } },
 			{
@@ -487,6 +524,35 @@ return function(API)
 						local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 						if humanoid and humanoid.Health > 0 then pcall(function() humanoid.Health = 0 end) end
 					end,
+				},
+			},
+		},
+		Avisos = {
+			{ Key = "RoundAlertsSection", Type = "Section", Config = { Name = "Avisos da partida" } },
+			{
+				Key = "AlertRoleAndMurderer",
+				Flag = "AlertRoleAndMurderer",
+				SectionKey = "RoundAlertsSection",
+				Importance = Importance.High,
+				Type = "Toggle",
+				Config = {
+					Name = "Meu cargo e quem é o Murderer",
+					Default = true,
+					Save = true,
+					Callback = function(value) Alerts:SetRoleAndMurdererEnabled(value) end,
+				},
+			},
+			{
+				Key = "AlertGunDropped",
+				Flag = "AlertGunDropped",
+				SectionKey = "RoundAlertsSection",
+				Importance = Importance.High,
+				Type = "Toggle",
+				Config = {
+					Name = "Avisar quando a arma cair",
+					Default = true,
+					Save = true,
+					Callback = function(value) Alerts:SetGunDroppedEnabled(value) end,
 				},
 			},
 		},
@@ -571,7 +637,7 @@ return function(API)
 		return false
 	end
 	function Settings:ResetSavedConfiguration()
-		local fileCleared = clearSavedConfigFile(); local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
+		local fileCleared = clearSavedConfigFile(); local tabOrder = { "Auto Farm", "Combat", "Map", "Visuals", "Player", "Avisos", "Settings" }
 		for _, parentPass in ipairs({ false, true }) do
 			for _, tabName in ipairs(tabOrder) do
 				local registry = self.Registries and self.Registries[tabName]
@@ -596,14 +662,58 @@ return function(API)
 
 	-- Initialization
 	function Settings:Init()
-		local registries = {}
-		for _, tabName in ipairs({ "Auto Farm", "Combat", "Visuals", "Player", "Settings" }) do
+		local registries = {}; local tabOrder = { "Auto Farm", "Combat", "Map", "Visuals", "Player", "Avisos", "Settings" }
+		for _, tabName in ipairs(tabOrder) do
 			local registry = ControlRegistry.new(Tabs[tabName], function() return UI:GetItemContainer(tabName) end)
 			registry:Build(ControlGroups[tabName]); registries[tabName] = registry
 		end
 		self.Registries = registries; API.UI.Registries = registries
 		Util.InitializeComponent("inicializar a Orion", function() return OrionLib:Init() end)
-		local tabOrder = { "Auto Farm", "Combat", "Visuals", "Player", "Settings" }
+		local function refreshDropdown(tabName, key, options, getCurrent, fallback)
+			local registry = registries[tabName]; local node = registry and registry.ByKey[key]; local control = node and node.Control
+			if
+				not control
+				or type(control.Options) ~= "table"
+				or type(control.Refresh) ~= "function"
+				or type(control.Set) ~= "function"
+			then
+				return
+			end
+			local same = #control.Options == #options
+			if same then
+				for index, option in ipairs(options) do
+					if control.Options[index] ~= option then same = false; break end
+				end
+			end
+			if same then return end
+			local selected = getCurrent(); control:Refresh(options, true)
+			if not table.find(options, selected) then selected = fallback end
+			control:Set(selected)
+		end
+		local function refreshPlayerOptions()
+			local options = MapTools:GetPlayerOptions()
+			refreshDropdown("Map", "MapTargetPlayer", options, function() return selectedPlayerName end, "Nenhum")
+		end
+		Runtime:Track(Services.Players.PlayerAdded:Connect(refreshPlayerOptions))
+		Runtime:Track(Services.Players.PlayerRemoving:Connect(function(target)
+			if selectedPlayerName == target.Name then selectedPlayerName = "Nenhum" end
+			refreshPlayerOptions()
+		end))
+		local optionsThread
+		optionsThread = task.spawn(function()
+			while not Runtime.ShuttingDown do
+				local options = MapTools:GetFavoriteMapOptions()
+				refreshDropdown(
+					"Map",
+					"FavoriteMap",
+					options,
+					function() return MapTools.FavoriteMaps[1] or "Nenhum" end,
+					"Nenhum"
+				)
+				task.wait(3)
+			end
+		end)
+		Runtime:TrackTask(optionsThread)
 		for _, parentPass in ipairs({ false, true }) do
 			for _, tabName in ipairs(tabOrder) do
 				local registry = registries[tabName]

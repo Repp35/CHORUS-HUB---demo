@@ -11,6 +11,8 @@ return function(API)
 		ManualAccuracy = 100,
 		AutoAccuracy = 100,
 		AllowOffscreen = true,
+		WaitForKnife = false,
+		KillCheatersEnabled = false,
 		RoleData = nil,
 		NextRoleRefreshAt = 0,
 		LastShotAt = 0,
@@ -81,6 +83,20 @@ return function(API)
 			end
 		end
 		return nil
+	end
+	function ShootMurder:IsMurdererOutOfMap()
+		local inRound, map = MatchService:GetRoundContext()
+		if not inRound or not map then return false end
+		local _, _, _, root = self:GetMurderer()
+		if not root then return false end
+		local ok, boundsCFrame, boundsSize = pcall(function() return map:GetBoundingBox() end)
+		if not ok or not boundsCFrame or not boundsSize then return false end
+		local relative = boundsCFrame:PointToObjectSpace(root.Position)
+		if (root.Position - boundsCFrame.Position).Magnitude > math.max(boundsSize.X, boundsSize.Z) + 150 then return false end
+		return relative.Y < -boundsSize.Y * 0.5 - 3
+			or relative.Y > boundsSize.Y * 0.5 + 4
+			or math.abs(relative.X) > boundsSize.X * 0.5 + 4
+			or math.abs(relative.Z) > boundsSize.Z * 0.5 + 4
 	end
 	function ShootMurder:FindGun(character, humanoid)
 		local gun = character:FindFirstChild("Gun")
@@ -219,6 +235,7 @@ return function(API)
 		if not localCharacter then return false end
 		local target, targetCharacter, _, targetRoot = self:GetMurderer()
 		if not target then return false end
+		if self.WaitForKnife and not targetCharacter:FindFirstChild("Knife") then return false end
 		local gun = self:FindGun(localCharacter, humanoid)
 		if not gun or gun.Parent ~= localCharacter then return false end
 		local shootRemote = gun:FindFirstChild("Shoot")
@@ -234,17 +251,20 @@ return function(API)
 	end
 	function ShootMurder:Update()
 		if self.Destroyed then return end
-		if not self.ManualEnabled and not self.AutoEnabled then self.RoleData = nil; self.NextRoleRefreshAt = 0; self:SetHudVisible(false); return end
+		if not self.ManualEnabled and not self.AutoEnabled and not self.KillCheatersEnabled then self.RoleData = nil; self.NextRoleRefreshAt = 0; self:SetHudVisible(false); return end
 		local inRound = MatchService:GetRoundContext()
 		if not inRound then self.RoleData = nil; self.NextRoleRefreshAt = 0; self:SetHudVisible(false); return end
 		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local isSheriff = localCharacter ~= nil; self:SetHudVisible(self.ManualEnabled and isSheriff)
-		if self.AutoEnabled and isSheriff then self:TryShoot(true) end
+		if isSheriff and self.KillCheatersEnabled and self:IsMurdererOutOfMap() then self:TryShoot(true)
+		elseif self.AutoEnabled and isSheriff then self:TryShoot(true) end
 	end
 	function ShootMurder:SetManualEnabled(enabled)
 		self.ManualEnabled = enabled == true
 		if not self.ManualEnabled then self:SetHudVisible(false) end
 	end
 	function ShootMurder:SetAutoEnabled(enabled) self.AutoEnabled = enabled == true end
+	function ShootMurder:SetWaitForKnife(enabled) self.WaitForKnife = enabled == true end
+	function ShootMurder:SetKillCheatersEnabled(enabled) self.KillCheatersEnabled = enabled == true end
 	function ShootMurder:SetManualAccuracy(value) self.ManualAccuracy = math.clamp(tonumber(value) or 100, 0, 100) end
 	function ShootMurder:SetAutoAccuracy(value) self.AutoAccuracy = math.clamp(tonumber(value) or 100, 0, 100) end
 	function ShootMurder:SetAllowOffscreen(enabled) self.AllowOffscreen = enabled == true end

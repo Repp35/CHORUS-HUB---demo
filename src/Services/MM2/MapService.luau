@@ -77,7 +77,7 @@ return function(API)
 	end
 
 	-- NearestCoin
-	function MapService:GetNearestCoin(container, position, retryAfter, passedCoins)
+	function MapService:GetNearestCoin(container, position, retryAfter, passedCoins, filter)
 		if not container or not container.Parent then return nil, math.huge end
 		if not Util.IsFiniteVector3(position) then return nil, math.huge end
 		retryAfter = retryAfter or {}; local nearest, nearestDistance, nearestPosition = nil, math.huge, nil; local now = os.clock()
@@ -93,6 +93,7 @@ return function(API)
 				local ok, currentPosition = pcall(function() return coin.Position end)
 				if ok and Util.IsFiniteVector3(currentPosition) then
 					if (currentPosition - coinPosition).Magnitude > 0.1 then coinPosition = currentPosition; self.CachedCoinPositions[coin] = currentPosition end
+					if filter and not filter(coin, coinPosition) then continue end
 					local distance = (position - coinPosition).Magnitude
 					if distance == distance and distance < math.huge and distance < nearestDistance then nearest, nearestDistance, nearestPosition = coin, distance, coinPosition end
 				else

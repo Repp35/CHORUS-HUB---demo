@@ -152,8 +152,10 @@ return function(API)
 	local Tabs = {
 		["Auto Farm"] = UI:MakeTab("Auto Farm"),
 		Combat = UI:MakeTab("Combat"),
+		Map = UI:MakeTab("Map"),
 		Visuals = UI:MakeTab("Visuals"),
 		Player = UI:MakeTab("Player"),
+		Avisos = UI:MakeTab("Avisos"),
 		Settings = UI:MakeTab("Settings"),
 	}
 
