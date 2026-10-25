@@ -144,7 +144,9 @@ end
 function API:Require(modulePath)
 	ensureBootstrapCurrent()
 	if self.Runtime and self.Runtime.ShuttingDown then error("O runtime anterior do Chorus já foi encerrado.", 2) end
-	if type(modulePath) ~= "string" or not modulePath:match("^src[%w_/%-]+$") or modulePath:find("..", 1, true) then error("Caminho de módulo inválido: " .. tostring(modulePath), 2) end
+	local validModulePath = type(modulePath) == "string"
+		and (modulePath:match("^src[%w_/%-]+$") or modulePath:match("^Testes/[%w_/%-]+$"))
+	if not validModulePath or modulePath:find("..", 1, true) then error("Caminho de módulo inválido: " .. tostring(modulePath), 2) end
 	if self.Cache[modulePath] ~= nil then return self.Cache[modulePath] end
 	if self.Loading[modulePath] then error("Dependência circular detectada em " .. modulePath .. ".", 2) end
 	self.Loading[modulePath] = true

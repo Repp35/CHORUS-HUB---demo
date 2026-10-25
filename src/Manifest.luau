@@ -17,7 +17,7 @@ return function()
 					{ Name = "AutoFarm", Path = "src/Features/MM2/AutoFarm" },
 					{ Name = "AutoGunPickup", Path = "src/Features/MM2/AutoGunPickup" },
 					{ Name = "ShootMurder", Path = "src/Features/MM2/ShootMurder" },
-					{ Name = "RoleNameDebug", Path = "src/Features/MM2/RoleNameDebug" },
+					{ Name = "RoleNameDebug", Path = "Testes/RoleNameDebug" },
 				},
 			},
 			Universal = {
