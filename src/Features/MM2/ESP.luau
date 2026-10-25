@@ -20,7 +20,6 @@ return function(API)
 		FillTransparency = 0.82,
 		OutlineTransparency = 0,
 		Thread = nil,
-		RenderConnection = nil,
 		RepairScheduled = false,
 		RoleRemote = nil,
 		RoleChangedConnection = nil,
@@ -408,6 +407,8 @@ return function(API)
 		self:RefreshPlayers(needsRoleData and self:GetRoleData() or nil, inMatch)
 		if self.Filters.CandyCoin and container then self:RefreshCoins(container)
 		else self:ClearMap(self.CoinMarkers) end
+		if self.Filters.Gun then self:RefreshGuns()
+		else self:ClearMap(self.GunMarkers) end
 	end
 	function ESP:ScheduleRepair()
 		if self.RepairScheduled or not self.Enabled or Runtime.ShuttingDown then return end
@@ -534,12 +535,6 @@ return function(API)
 		self:ClearAll(); self.Enabled = true; self:ConnectRoleChanges()
 		local refreshed, refreshError = xpcall(function() self:Refresh() end, Util.FormatError)
 		if not refreshed then self:ReportError("atualização inicial", refreshError) end
-		self.RenderConnection = Runtime:Track(Services.RunService.PreRender:Connect(function()
-			local ok, errorMessage = xpcall(function()
-				self:HideMarkersForPreRender(); self:RefreshPlayers(self.RoleData, self.InRound); self:RefreshGuns(); self:ReapplyMarkers()
-			end, Util.FormatError)
-			if not ok then self:ReportError("reaplicar por frame", errorMessage) end
-		end))
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
@@ -554,10 +549,6 @@ return function(API)
 	end
 	function ESP:Stop()
 		self.Enabled = false; local thread = self.Thread; self.Thread = nil
-		if self.RenderConnection then
-			pcall(function() self.RenderConnection:Disconnect() end)
-			self.RenderConnection = nil
-		end
 		if thread then pcall(task.cancel, thread) end
 		if self.RoleChangedConnection then
 			pcall(function() self.RoleChangedConnection:Disconnect() end)

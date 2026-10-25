@@ -81,8 +81,7 @@ return function(API)
 				Importance = Importance.Normal,
 				Type = "Toggle",
 				Config = {
-					Name = "Legit (aguarda o assassino sacar a faca)",
-					Description = "Aguarda o assassino sacar a faca.",
+					Name = "Legit",
 					Default = false,
 					Save = true,
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
@@ -185,8 +184,8 @@ return function(API)
 				Config = {
 					Name = "Auto Farm Speed",
 					Min = 5,
-					Max = 40,
-					Default = 23,
+					Max = 100,
+					Default = 40,
 					Increment = 1,
 					ValueName = "studs/s",
 					Save = true,

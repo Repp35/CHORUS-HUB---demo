@@ -3,8 +3,8 @@
 return function(API)
 	local Services = API.Roblox; local Player = API.Player; local Runtime = API.Runtime; local Util = API.Util
 	local Workspace = Services.Workspace; local CoinService = API.Services.Coin; local MapService = API.Services.Map; local MatchService = API.Services.Match
-	local TOUCH_DISTANCE = 3.5; local TOUCH_RETRY_DELAY = 0.12; local PASS_THROUGH_DISTANCE = 1.5; local ROLE_REFRESH_INTERVAL = 0.5
-	local AVOID_MURDERER_COIN_DISTANCE = 45; local AVOID_MURDERER_PLAYER_DISTANCE = 40
+	local TOUCH_DISTANCE = 3.5; local PASS_THROUGH_DISTANCE = 1.5; local ROLE_REFRESH_INTERVAL = 0.5; local AVOID_MURDERER_COIN_DISTANCE = 45
+	local AVOID_MURDERER_PLAYER_DISTANCE = 40
 	local NO_ROLE_VALUES =
 		{ unknown = true, none = true, norole = true, sempapel = true, unassigned = true, waiting = true, lobby = true }
 
@@ -12,11 +12,10 @@ return function(API)
 	local Farm = {
 		Enabled = false,
 		Farming = false,
-		Speed = 23,
+		Speed = 40,
 		Thread = nil,
 		Tween = nil,
 		ProximityConnection = nil,
-		LastProximitySweepAt = 0,
 		BagFull = false,
 		ResetWhenBagFull = false,
 		AvoidMurderer = false,
@@ -30,8 +29,8 @@ return function(API)
 		ActivationCharacter = nil,
 		ActivationRoot = nil,
 		ActivationCFrame = nil,
-		RetryAfter = setmetatable({}, { __mode = "k" }),
 		PassedCoins = setmetatable({}, { __mode = "k" }),
+		CollectionSerial = 0,
 		PassedContainer = nil,
 		LastErrorAt = 0,
 		RoleData = nil,
@@ -200,9 +199,7 @@ return function(API)
 		end
 		coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin]
 		if not coinPosition or (root.Position - coinPosition).Magnitude > TOUCH_DISTANCE then return false end
-		local now = os.clock()
-		if (self.RetryAfter[coin] or 0) <= now then local touched = self:TouchOnce(root, coin); self.RetryAfter[coin] = now + (touched and TOUCH_RETRY_DELAY or 0.05) end
-		return true
+		self:TouchOnce(root, coin); return true
 	end
 
 	-- ProximityCollection
@@ -210,9 +207,6 @@ return function(API)
 		if self.ProximityConnection then return end
 		self.ProximityConnection = Services.RunService.Heartbeat:Connect(function()
 			if not self.Enabled or not self.Farming or self.BagFull then return end
-			local now = os.clock()
-			if now - self.LastProximitySweepAt < 0.04 then return end
-			self.LastProximitySweepAt = now
 			local ok, errorMessage = xpcall(function()
 				local inMatch, _, _, root, container = self:GetActiveContext()
 				if not inMatch then return end
@@ -335,12 +329,13 @@ return function(API)
 			return
 		end
 		local succeeded, errorMessage = xpcall(function()
+			local collectionSerial = self.CollectionSerial
 			if self.Farming and self.FarmingCharacter ~= character then self:StopFarming() end
 			if not self.Farming and not self:StartFarming(character, humanoid, root) then return end
 			coinPosition = coinPosition or MapService:GetCoinPositions(container)[coin] or coin.Position
 			if not Util.IsFiniteVector3(coinPosition) or not Util.IsFiniteVector3(root.Position) then return end
 			local speed = tonumber(self.Speed)
-			if not speed or speed ~= speed or speed == math.huge then speed = 23 end
+			if not speed or speed ~= speed or speed == math.huge then speed = 40 end
 			speed = math.max(speed, 1); local target = coinPosition - Vector3.new(0, 2.5, 0); local approach = target - root.Position; local approachDistance = approach.Magnitude
 			if approachDistance ~= approachDistance or approachDistance == math.huge then return end
 			if approachDistance > 0.001 then target += approach.Unit * PASS_THROUGH_DISTANCE end
@@ -367,7 +362,7 @@ return function(API)
 				then
 					pcall(function() tween:Cancel() end)
 					if self.Tween == tween then self.Tween = nil end
-					self.RetryAfter[coin] = os.clock() + 0.6; return
+					return
 				end
 				local inMatch, activeCharacter, activeHumanoid, activeRoot, activeContainer = self:GetActiveContext()
 				if
@@ -384,6 +379,7 @@ return function(API)
 					break
 				end
 				self:TouchCoinInRange(root, coin, container, coinPosition)
+				if self.CollectionSerial ~= collectionSerial or not CoinService:IsCollectable(coin, container) then break end
 				if tween.PlaybackState ~= Enum.PlaybackState.Playing then break end
 				Services.RunService.Heartbeat:Wait()
 			end
@@ -400,7 +396,7 @@ return function(API)
 				and coin:IsDescendantOf(container)
 				and CoinService:IsCollectable(coin, container)
 			then
-				if not self:TouchCoinInRange(root, coin, container, coinPosition) then self.RetryAfter[coin] = os.clock() + TOUCH_RETRY_DELAY end
+				self:TouchCoinInRange(root, coin, container, coinPosition)
 			end
 			if
 				routeCompleted
@@ -411,7 +407,7 @@ return function(API)
 				self.PassedCoins[coin] = true
 			end
 		end, Util.FormatError)
-		if not succeeded then self:StopFarming(); self.RetryAfter[coin] = os.clock() + 0.8; self:ReportError("coleta", errorMessage) end
+		if not succeeded then self:ReportError("coleta", errorMessage) end
 	end
 
 	-- Lifecycle
@@ -420,28 +416,28 @@ return function(API)
 		local character = Player.Character; local root = character and character:FindFirstChild("HumanoidRootPart"); self.ActivationCharacter = character; self.ActivationRoot = root
 		self.ActivationCFrame = root and root:IsA("BasePart") and root.CFrame or nil; self.Enabled = true; self.RoleData = nil; self.NextRoleRefreshAt = 0
 		self.ThreatRoot = nil; self.ThreatRefreshAt = 0; table.clear(self.PassedCoins); self.PassedContainer = nil
-		self.RetryAfter = setmetatable({}, { __mode = "k" }); local invisicam = API.Features.Invisicam
+		local invisicam = API.Features.Invisicam
 		if invisicam and type(invisicam.SetSource) == "function" then pcall(invisicam.SetSource, invisicam, "AutoFarm", true) end
 		local thread
 		thread = task.spawn(function()
 			while self.Enabled and not Runtime.ShuttingDown do
 				local ok, errorMessage = xpcall(function()
 					local inMatch, character, humanoid, root, container = self:GetActiveContext()
-					if not inMatch then self:StopFarming(); task.wait(0.3); return end
-					if self.BagFull then self:StopFarming(); task.wait(0.3); return end
-					if self:IsNearMurderer(root.Position, AVOID_MURDERER_PLAYER_DISTANCE) then self:StopFarming(); task.wait(0.3); return end
+					if not inMatch then self:StopFarming(); Services.RunService.Heartbeat:Wait(); return end
+					if self.BagFull then self:StopFarming(); Services.RunService.Heartbeat:Wait(); return end
+					if self:IsNearMurderer(root.Position, AVOID_MURDERER_PLAYER_DISTANCE) then self:StopFarming(); Services.RunService.Heartbeat:Wait(); return end
 					if self.PassedContainer ~= container then table.clear(self.PassedCoins); self.PassedContainer = container end
 					local coin, _, coinPosition = MapService:GetNearestCoin(
 						container,
 						root.Position,
-						self.RetryAfter,
+						nil,
 						self.PassedCoins,
 						function(_, position) return not self:IsNearMurderer(position, AVOID_MURDERER_COIN_DISTANCE) end
 					)
 					if coin then self:CollectCoin(coin, character, humanoid, root, container, coinPosition)
-					else self:StopFarming(); task.wait(0.25) end
+					else Services.RunService.Heartbeat:Wait() end
 				end, Util.FormatError)
-				if not ok then self:StopFarming(); self:ReportError("ciclo", errorMessage); task.wait(0.2) end
+				if not ok then self:ReportError("ciclo", errorMessage); Services.RunService.Heartbeat:Wait() end
 			end
 			if self.Thread == thread then self.Thread = nil end
 			self:StopFarming(); self:StopProximityCollection()
@@ -467,7 +463,7 @@ return function(API)
 		if coinCollected and coinCollected:IsA("RemoteEvent") then
 			Runtime:Track(coinCollected.OnClientEvent:Connect(function(coinType, count, maximum)
 				if not CoinService:NormalizeKind(coinType) then return end
-				local collected = tonumber(count); local capacity = tonumber(maximum)
+				Farm.CollectionSerial += 1; local collected = tonumber(count); local capacity = tonumber(maximum)
 				if not collected or not capacity or capacity <= 0 then return end
 				if collected >= capacity then Farm.BagFull = true; Farm:StopFarming(); Farm:ResetCharacterForFullBag() end
 			end))
@@ -477,7 +473,7 @@ return function(API)
 			if event and event:IsA("RemoteEvent") then
 				local isRoundEnd = eventName == "RoundEndFade"
 				Runtime:Track(event.OnClientEvent:Connect(function()
-					Farm:ResetBagState(); Farm.RetryAfter = setmetatable({}, { __mode = "k" }); Farm.PassedCoins = setmetatable({}, { __mode = "k" }); Farm.PassedContainer = nil
+					Farm:ResetBagState(); Farm.PassedCoins = setmetatable({}, { __mode = "k" }); Farm.PassedContainer = nil
 					if isRoundEnd then Farm:StopFarming() end
 				end))
 			end
