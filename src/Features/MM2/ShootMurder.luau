@@ -193,7 +193,7 @@ return function(API)
 		if oldGui then oldGui:Destroy() end
 		local screenGui = Instance.new("ScreenGui"); screenGui.Name = GUI_NAME; screenGui.ResetOnSpawn = false; screenGui.IgnoreGuiInset = true
 		screenGui.DisplayOrder = 100; screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; local button = Instance.new("TextButton"); button.Name = "ShootMurderButton"
-		button.AnchorPoint = Vector2.new(1, 1); button.Position = UDim2.new(1, -145, 1, -170); button.Size = UDim2.fromOffset(65, 65); button.BackgroundColor3 = Color3.fromRGB(70, 170, 100)
+		button.AnchorPoint = Vector2.new(1, 1); button.Position = UDim2.new(1, -80, 1, -170); button.Size = UDim2.fromOffset(65, 65); button.BackgroundColor3 = Color3.fromRGB(70, 170, 100)
 		button.BackgroundTransparency = 1; button.BorderSizePixel = 0; button.AutoButtonColor = true; button.Font = Enum.Font.GothamBold
 		button.Text = "🔫"; button.TextSize = 30; button.TextTransparency = 1; button.Parent = screenGui
 		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 15); corner.Parent = button; local stroke = Instance.new("UIStroke")
