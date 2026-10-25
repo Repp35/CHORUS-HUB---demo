@@ -13,6 +13,7 @@ return function(API)
 		AllowOffscreen = true,
 		WaitForKnife = false,
 		RoleData = nil,
+		RoleDataAt = 0,
 		NextRoleRefreshAt = 0,
 		LastShotAt = 0,
 		HudVisible = false,
@@ -48,7 +49,9 @@ return function(API)
 	function ShootMurder:RefreshRoleData(force)
 		local now = os.clock()
 		if not force and now < self.NextRoleRefreshAt then return self.RoleData end
-		self.NextRoleRefreshAt = now + ROLE_REFRESH_INTERVAL; local ok, roleData = pcall(MatchService.GetPlayerData, MatchService); self.RoleData = ok and type(roleData) == "table" and roleData or nil
+		self.NextRoleRefreshAt = now + ROLE_REFRESH_INTERVAL; local ok, roleData = pcall(MatchService.GetPlayerData, MatchService)
+		if ok and type(roleData) == "table" and next(roleData) ~= nil then self.RoleData = roleData; self.RoleDataAt = now
+		elseif not self.RoleData or now - self.RoleDataAt > 2 then self.RoleData = nil; self.RoleDataAt = 0 end
 		return self.RoleData
 	end
 	function ShootMurder:GetLocalContext()
@@ -58,7 +61,7 @@ return function(API)
 		local profile = self.RoleData and self.RoleData[Player.Name]
 		if
 			type(profile) ~= "table"
-			or profile.Role ~= "Sheriff"
+			or (profile.Role ~= "Sheriff" and profile.Role ~= "Hero")
 			or profile.Dead == true
 			or profile.Killed == true
 			or not character
@@ -246,15 +249,22 @@ return function(API)
 	end
 	function ShootMurder:Update()
 		if self.Destroyed then return end
-		if not self.ManualEnabled and not self.AutoEnabled then self.RoleData = nil; self.NextRoleRefreshAt = 0; self:SetHudVisible(false); return end
+		if not self.ManualEnabled and not self.AutoEnabled then
+			self.RoleData = nil; self.RoleDataAt = 0; self.NextRoleRefreshAt = 0; self:SetHudVisible(false)
+			return
+		end
 		local inRound = MatchService:GetRoundContext()
-		if not inRound then self.RoleData = nil; self.NextRoleRefreshAt = 0; self:SetHudVisible(false); return end
+		if not inRound then
+			self.RoleData = nil; self.RoleDataAt = 0; self.NextRoleRefreshAt = 0; self:SetHudVisible(false)
+			return
+		end
 		self:RefreshRoleData(false); local localCharacter = self:GetLocalContext(); local isSheriff = localCharacter ~= nil; self:SetHudVisible(self.ManualEnabled and isSheriff)
 		if self.AutoEnabled and isSheriff then self:TryShoot(true) end
 	end
 	function ShootMurder:SetManualEnabled(enabled)
 		self.ManualEnabled = enabled == true
-		if not self.ManualEnabled then self:SetHudVisible(false) end
+		if self.ManualEnabled then self:SetHudVisible(self:GetLocalContext() ~= nil)
+		else self:SetHudVisible(false) end
 	end
 	function ShootMurder:SetAutoEnabled(enabled) self.AutoEnabled = enabled == true end
 	function ShootMurder:SetWaitForKnife(enabled) self.WaitForKnife = enabled == true end
