@@ -58,12 +58,12 @@ return function(API)
 		local inRound = MatchService:GetRoundContext()
 		if not inRound or Player:GetAttribute("Alive") ~= true then return nil end
 		local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
-		local profile = self.RoleData and self.RoleData[Player.Name]
+		local profile = self.RoleData and self.RoleData[Player.Name]; local roleCanShoot = type(profile) == "table" and (profile.Role == "Sheriff" or profile.Role == "Hero")
+		local backpack = Player:FindFirstChildOfClass("Backpack"); local hasGun = character and character:FindFirstChild("Gun") ~= nil
+			or backpack and backpack:FindFirstChild("Gun") ~= nil
 		if
-			type(profile) ~= "table"
-			or (profile.Role ~= "Sheriff" and profile.Role ~= "Hero")
-			or profile.Dead == true
-			or profile.Killed == true
+			(not roleCanShoot and not hasGun)
+			or type(profile) == "table" and (profile.Dead == true or profile.Killed == true)
 			or not character
 			or not humanoid
 			or humanoid.Health <= 0

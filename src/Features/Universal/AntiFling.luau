@@ -24,6 +24,7 @@ return function(API)
 		LastAliveState = nil,
 		LastSafeCheckAt = 0,
 		LastSafeCFrame = nil,
+		AllowedMovementUntil = 0,
 		RecoveryCFrame = nil,
 		RecoveryUntil = 0,
 		FloorRaycastParams = nil,
@@ -238,6 +239,10 @@ return function(API)
 		end)
 		self.LastPosition = safeCFrame.Position; self.LastSampleAt = now; return ok
 	end
+	function AntiFling:AllowTeleport(duration)
+		self.AllowedMovementUntil =
+			math.max(self.AllowedMovementUntil, os.clock() + math.clamp(finiteNumber(duration, 0.35), 0.05, 1))
+	end
 
 	-- MovementGuard
 	function AntiFling:_GuardLocalVelocity()
@@ -253,6 +258,11 @@ return function(API)
 			self.LastAliveState = isAlive
 			if self.LocalCharacter ~= character or self.LocalRoot ~= root then self:_PrepareLocalCharacter(character, humanoid, root) end
 			local now = os.clock(); local position = root.Position
+			if now <= self.AllowedMovementUntil then
+				self.LastPosition = position; self.LastSampleAt = now; local safeCFrame = self:_GroundedCFrame(position, root, humanoid, character)
+				if safeCFrame then self.LastSafeCFrame = safeCFrame end
+				return
+			end
 			if self.RecoveryCFrame and now <= self.RecoveryUntil then self:_ApplyRecovery(root, humanoid, now); return
 			elseif self.RecoveryCFrame then self.RecoveryCFrame = nil; self.LastPosition = position; self.LastSampleAt = now end
 			if not Util.IsFiniteVector3(position) then self:_ApplyRecovery(root, humanoid, now); return end
@@ -333,7 +343,8 @@ return function(API)
 		end
 		self:_RestoreAllCollisions(); self.LocalCharacter = nil; self.LocalRoot = nil; self.BaseWalkSpeed = nil
 		self.LastPosition = nil; self.LastSampleAt = 0; self.LastAliveState = nil; self.LastSafeCheckAt = 0
-		self.LastSafeCFrame = nil; self.RecoveryCFrame = nil; self.RecoveryUntil = 0; self.FloorRaycastParams = nil
+		self.LastSafeCFrame = nil; self.RecoveryCFrame = nil; self.RecoveryUntil = 0; self.AllowedMovementUntil = 0
+		self.FloorRaycastParams = nil
 	end
 	Runtime:OnShutdown(function() AntiFling:Stop() end)
 

@@ -16,6 +16,10 @@ return function(API)
 		local window = API.UI and API.UI.Window; local library = window and window.OrionLib
 		if library and type(library.MakeNotification) == "function" then pcall(library.MakeNotification, library, { Name = "Map", Content = content, Time = 4 }) end
 	end
+	local function allowAntiFlingTeleport()
+		local antiFling = API.Features.AntiFling
+		if antiFling and type(antiFling.AllowTeleport) == "function" then antiFling:AllowTeleport(0.35) end
+	end
 	local function getTeleportContext()
 		local character = Player.Character; local humanoid = character and character:FindFirstChildOfClass("Humanoid"); local root = character and character:FindFirstChild("HumanoidRootPart")
 		if
@@ -101,7 +105,7 @@ return function(API)
 		if not spawn then notify("Não encontrei um ponto de spawn no mapa."); return false end
 		local ok = pcall(function() character:PivotTo(spawn.CFrame) end)
 		if not ok then notify("Não foi possível teleportar para o mapa."); return false end
-		notify("Teleportado para " .. tostring(map:GetAttribute("MapID")) .. "."); return true
+		allowAntiFlingTeleport(); notify("Teleportado para " .. tostring(map:GetAttribute("MapID")) .. "."); return true
 	end
 	function MapTools:FindRoleTarget(role, includeHero)
 		local data = MatchService:GetPlayerData()
@@ -136,7 +140,7 @@ return function(API)
 		if not targetCharacter then notify("Escolha outro jogador vivo."); return false end
 		local ok = pcall(function() character:PivotTo(targetRoot.CFrame * CFrame.new(0, 0, 3)) end)
 		if not ok then notify("Não foi possível teleportar até o jogador."); return false end
-		notify("Teleportado até " .. target.DisplayName .. "."); return true
+		allowAntiFlingTeleport(); notify("Teleportado até " .. target.DisplayName .. "."); return true
 	end
 	function MapTools:TeleportToRole(role)
 		local target

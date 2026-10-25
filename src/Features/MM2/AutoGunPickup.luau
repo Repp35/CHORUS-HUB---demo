@@ -492,13 +492,25 @@ return function(API)
 		end
 		local touchFunction = getTouchFunction()
 		if not touchFunction then return false, "touch_unavailable" end
-		self.Touching = true
+		self.Touching = true; local originalCFrame = root.CFrame; local originalLinear = root.AssemblyLinearVelocity; local originalAngular = root.AssemblyAngularVelocity
 		local ok, errorMessage = xpcall(function()
-			touchFunction(root, gunPart, 0); Services.RunService.Heartbeat:Wait(); touchFunction(root, gunPart, 1); task.wait(0.3)
+			local antiFling = API.Features.AntiFling
+			if antiFling and type(antiFling.AllowTeleport) == "function" then antiFling:AllowTeleport(0.2) end
+			root.CFrame = gunPart.CFrame; touchFunction(root, gunPart, 0); Services.RunService.Heartbeat:Wait(); touchFunction(root, gunPart, 1)
 		end, Util.FormatError)
+		local restoreOk, restoreError = pcall(function()
+			root.CFrame = originalCFrame; root.AssemblyLinearVelocity = originalLinear; root.AssemblyAngularVelocity = originalAngular
+		end)
 		self.Touching = false
 		if not ok then error(errorMessage, 0) end
-		local collected = self:HasGun(character); return collected, collected and "collected" or "attempt_failed"
+		if not restoreOk then error(restoreError, 0) end
+		local deadline = os.clock() + 0.3
+		repeat
+			if self:HasGun(character) then return true, "collected" end
+			if not self.Enabled or self.Generation ~= generation then return false, "stopped" end
+			Services.RunService.Heartbeat:Wait()
+		until os.clock() >= deadline
+		return false, "attempt_failed"
 	end
 
 	-- DirectPickupAttempt
@@ -626,7 +638,7 @@ return function(API)
 			pcall(function() self.PlayerDataConnection:Disconnect() end)
 			self.PlayerDataConnection = nil
 		end
-		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Busy = false; self.Touching = false
+		self.ActiveHumanoid = nil; self.ActiveRoot = nil
 	end
 	Runtime:OnShutdown(function() Pickup:Stop() end)
 

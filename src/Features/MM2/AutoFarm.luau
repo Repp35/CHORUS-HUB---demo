@@ -313,6 +313,8 @@ return function(API)
 		local savedPosition = savedCFrame.Position; local floor = Workspace:Raycast(savedPosition + Vector3.new(0, 0.5, 0), Vector3.new(0, -8.5, 0), params)
 		if not floor or savedPosition.Y - floor.Position.Y > 8 or floor.Position.Y > savedPosition.Y + 0.5 then return false end
 		local restored = pcall(function()
+			local antiFling = API.Features.AntiFling
+			if antiFling and type(antiFling.AllowTeleport) == "function" then antiFling:AllowTeleport(0.35) end
 			root.CFrame = savedCFrame; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero
 		end)
 		return restored
@@ -453,7 +455,17 @@ return function(API)
 		if restoreActivationPosition == true then self:RestoreActivationPosition()
 		else self.ActivationCharacter = nil; self.ActivationRoot = nil; self.ActivationCFrame = nil end
 	end
+	function Farm:DisableAfterDeath()
+		if not self.Enabled then return end
+		local registries = API.UI and API.UI.Registries; local registry = registries and registries["Auto Farm"]; local node = registry and registry.ByFlag and registry.ByFlag.AutoFarm
+		local toggle = node and node.Control
+		if toggle and toggle.Value == true and type(toggle.Set) == "function" then pcall(toggle.Set, toggle, false)
+		else self:Stop(false) end
+	end
 	Runtime:Track(Player.CharacterAdded:Connect(function() Farm:StopMotion() end))
+	Runtime:Track(Player:GetAttributeChangedSignal("Alive"):Connect(function()
+		if Player:GetAttribute("Alive") == false then Farm:DisableAfterDeath() end
+	end))
 
 	-- RoundEvents
 	local function bindFarmRoundEvents()

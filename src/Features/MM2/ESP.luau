@@ -37,6 +37,7 @@ return function(API)
 		LastKnownRoles = setmetatable({}, { __mode = "k" }),
 		CoinMarkers = {},
 		GunMarkers = {},
+		GunMotion = setmetatable({}, { __mode = "k" }),
 		Filters = {
 			Murderer = true,
 			Sheriff = true,
@@ -396,6 +397,21 @@ return function(API)
 		end
 		gunParts[part] = true
 	end
+	local function isGunStationary(esp, part, now)
+		local velocityOk, velocity = pcall(function() return part.AssemblyLinearVelocity end)
+		local positionOk, position = pcall(function() return part.Position end)
+		if
+			not velocityOk
+			or not positionOk
+			or not Util.IsFiniteVector3(velocity)
+			or not Util.IsFiniteVector3(position)
+		then
+			esp.GunMotion[part] = nil; return false
+		end
+		local motion = esp.GunMotion[part]
+		if velocity.Magnitude > 0.5 or not motion or (position - motion.Position).Magnitude > 0.08 then esp.GunMotion[part] = { Position = position, Since = now }; return false end
+		motion.Position = position; return now - motion.Since >= 0.2
+	end
 	function ESP:RefreshGuns()
 		local gunParts = {}; local visibleGunParts = {}
 		if self.Filters.Gun then
@@ -411,6 +427,7 @@ return function(API)
 		end
 		local localCharacter = Player.Character; local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
 		for part in pairs(gunParts) do
+			if not isGunStationary(self, part, os.clock()) then continue end
 			visibleGunParts[part] = true; local marker = self.GunMarkers[part]
 			if not marker or not marker.Gui.Parent or not marker.Highlight.Parent then
 				if marker then destroyMarker(marker) end
@@ -431,6 +448,9 @@ return function(API)
 		end
 		for part, marker in pairs(self.GunMarkers) do
 			if not visibleGunParts[part] then destroyMarker(marker); self.GunMarkers[part] = nil end
+		end
+		for part in pairs(self.GunMotion) do
+			if not gunParts[part] then self.GunMotion[part] = nil end
 		end
 	end
 
