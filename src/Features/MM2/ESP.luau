@@ -186,35 +186,44 @@ return function(API)
 	function ESP:UpdatePlayerLabels(marker, username, identity, color, distance)
 		local categoryEnabled = marker.Category ~= nil and self.Filters[marker.Category] == true; local showIdentity = self.ShowIdentity == true and categoryEnabled
 		local showDistance = self.ShowDistance == true and marker.IsSelf ~= true and categoryEnabled; local showUsername = self.ShowUsername == true and categoryEnabled
-		local identitySize = getNameTextSize(self, distance); local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 3
-		local usernameHeight = usernameSize + 2; local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
+		local identitySize = getNameTextSize(self, distance); local usernameSize = math.max(self.UsernameTextSizeMin, identitySize - 3); local identityHeight = identitySize + 1
+		local usernameHeight = usernameSize + 1; local offsetY = 0; local labelColor = getLabelColor(color); marker.IdentityLabel.Text = identity
 		marker.IdentityLabel.TextColor3 = labelColor
 		marker.IdentityLabel.TextSize = identitySize; marker.IdentityLabel.Visible = showIdentity; marker.UsernameLabel.Text = username
 		marker.UsernameLabel.TextColor3 = labelColor
-		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; marker.DistanceLabel.Text = type(distance) == "number"
+		marker.UsernameLabel.TextSize = usernameSize; marker.UsernameLabel.Visible = showUsername; local distanceText = type(distance) == "number"
 				and distance == distance
 				and math.abs(distance) < math.huge
 				and (string.format("%.1f", math.max(distance, 0) * STUD_TO_METERS):gsub("%.", ",") .. "m")
 			or "-- m"
+		marker.DistanceLabel.Text = distanceText
 		marker.DistanceLabel.TextColor3 = labelColor
-		marker.DistanceLabel.TextSize = math.max(11, usernameSize); marker.DistanceLabel.Visible = showDistance
+		marker.DistanceLabel.TextSize = math.max(11, showIdentity and identitySize or usernameSize); marker.DistanceLabel.Visible = showDistance
 		local primaryLabel, primaryHeight
 		if showIdentity then
-			if showUsername then marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY); marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight end
+			if showUsername then
+				marker.UsernameLabel.TextXAlignment = Enum.TextXAlignment.Center; marker.UsernameLabel.Position = UDim2.fromOffset(0, offsetY)
+				marker.UsernameLabel.Size = UDim2.new(1, 0, 0, usernameHeight); offsetY += usernameHeight
+			end
 			primaryLabel, primaryHeight = marker.IdentityLabel, identityHeight
 		elseif showUsername then
 			primaryLabel, primaryHeight = marker.UsernameLabel, usernameHeight
 		end
 		if primaryLabel then
-			local primaryWidth = math.ceil(primaryLabel.TextBounds.X) + 8; local distanceWidth = showDistance and math.ceil(marker.DistanceLabel.TextBounds.X) + 8 or 0
-			local gap = showDistance and 4 or 0; local rowWidth = primaryWidth + distanceWidth + gap
-			local rowHeight = math.max(primaryHeight, showDistance and (marker.DistanceLabel.TextSize + 2) or 0); local rowX = (260 - rowWidth) * 0.5
+			primaryLabel.TextXAlignment = Enum.TextXAlignment.Left
+			if showDistance then marker.DistanceLabel.Text = " " .. distanceText end
+			local primaryWidth = math.max(1, math.ceil(primaryLabel.TextBounds.X)); local distanceWidth = showDistance and math.max(1, math.ceil(marker.DistanceLabel.TextBounds.X)) or 0
+			local rowWidth = primaryWidth + distanceWidth; local rowHeight = math.max(primaryHeight, showDistance and (marker.DistanceLabel.TextSize + 1) or 0); local rowX = (260 - rowWidth) * 0.5
 			primaryLabel.Position = UDim2.fromOffset(rowX, offsetY); primaryLabel.Size = UDim2.fromOffset(primaryWidth, rowHeight)
-			if showDistance then marker.DistanceLabel.Position = UDim2.fromOffset(rowX + primaryWidth + gap, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight) end
+			if showDistance then
+				marker.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Left; marker.DistanceLabel.Position = UDim2.fromOffset(rowX + primaryWidth, offsetY)
+				marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, rowHeight)
+			end
 			offsetY += rowHeight
 		elseif showDistance then
-			local distanceWidth = math.ceil(marker.DistanceLabel.TextBounds.X) + 8; marker.DistanceLabel.Position = UDim2.fromOffset((260 - distanceWidth) * 0.5, offsetY)
-			marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, marker.DistanceLabel.TextSize + 2); offsetY += marker.DistanceLabel.TextSize + 2
+			marker.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Center; local distanceWidth = math.ceil(marker.DistanceLabel.TextBounds.X)
+			marker.DistanceLabel.Position = UDim2.fromOffset((260 - distanceWidth) * 0.5, offsetY); marker.DistanceLabel.Size = UDim2.fromOffset(distanceWidth, marker.DistanceLabel.TextSize + 2)
+			offsetY += marker.DistanceLabel.TextSize + 2
 		end
 		marker.Gui.Size = UDim2.fromOffset(260, math.max(offsetY, 1)); marker.Gui.Enabled = offsetY > 0
 	end
