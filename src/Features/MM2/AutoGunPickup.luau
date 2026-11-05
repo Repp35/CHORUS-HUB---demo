@@ -84,45 +84,20 @@ return function(API)
 		return type(profile) ~= "table" or profile.Dead == true or profile.Killed == true
 	end
 	function Pickup:GetActiveContext()
-		local inMatch, character, humanoid, root, container = MatchService:GetContext()
-		if
-			not inMatch
-			or not character
-			or not humanoid
-			or humanoid.Health <= 0
-			or not root
-			or Player.Character ~= character
-			or Player:GetAttribute("Alive") ~= true
-			or not container
-			or not container.Parent
-		then
-			return false
-		end
-		local map = container.Parent
-		if
-			not map:IsA("Model")
-			or map.Parent ~= Workspace
-			or map:GetAttribute("MapID") == nil
-			or not container:IsDescendantOf(map)
-			or pointInModel(map, root.Position, 20) ~= true
-			or isInLobby(root.Position)
-		then
-			return false
-		end
-		local roleData = self:GetRoleData(); local localProfile = roleData and roleData[Player.Name]
-		if
-			type(roleData) ~= "table"
-			or next(roleData) == nil
-			or type(localProfile) ~= "table"
-			or localProfile.Role ~= "Innocent"
-			or isProfileDead(localProfile)
-		then
-			return false
-		end
+		local active, map, container = MatchService:GetRoundContext()
+		local character = Player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not active or not map or not container or not character or not humanoid or humanoid.Health <= 0
+			or not root or not root:IsA("BasePart") or not character:IsDescendantOf(Workspace) then return false end
+		if Player:GetAttribute("Alive") == false then return false end
+		local roleData = self:GetRoleData()
+		local profile = roleData and roleData[Player.Name]
+		if type(profile) == "table" and (profile.Role == "Murderer" or profile.Dead == true or profile.Killed == true) then return false end
 		if self.ActiveMap ~= map then
-			self.ActiveMap = map; self.NextAttemptAt = 0; self.RetryAfter = setmetatable({}, { __mode = "k" }); self.Failures = setmetatable({}, { __mode = "k" })
-			self.ThreatPathCache = nil; self.HuntRoot = nil; self.HuntGap = nil; self.HuntUntil = 0
-			self.ObservedThrowDistance = nil; self.ThrowObservedAt = 0
+			self.ActiveMap = map; self.NextAttemptAt = 0
+			self.RetryAfter = setmetatable({}, { __mode = "k" })
+			self.Failures = setmetatable({}, { __mode = "k" })
 		end
 		return true, character, humanoid, root, container, map, roleData
 	end
@@ -145,23 +120,18 @@ return function(API)
 		return instance:FindFirstChildWhichIsA("BasePart", true)
 	end
 	local function gunStillThere(gun) return gun ~= nil and gun.Parent ~= nil and gun:IsDescendantOf(Workspace) end
-	function Pickup:GetNearestDroppedGun(root, map)
-		local now = os.clock()
-		local nearestTag, nearestPart, nearestDistance
-		for _, taggedGun in ipairs(Services.CollectionService:GetTagged(GUN_DROP_TAG)) do
-			local part = taggedGun:IsA("BasePart") and taggedGun or nil
-			if
-				part
-				and (self.RetryAfter[taggedGun] or 0) <= now
-				and Util.IsFiniteVector3(part.Position)
-				and pointInModel(map, part.Position, 20) == true
-				and not isInLobby(part.Position)
-			then
+	function Pickup:GetNearestDroppedGun(root)
+		local nearest, nearestPart, nearestDistance
+		for _, gun in ipairs(Services.CollectionService:GetTagged(GUN_DROP_TAG)) do
+			local part = getGunPart(gun)
+			if part then
 				local distance = (root.Position - part.Position).Magnitude
-				if not nearestDistance or distance < nearestDistance then nearestTag = taggedGun; nearestPart = part; nearestDistance = distance end
+				if not nearestDistance or distance < nearestDistance then
+					nearest, nearestPart, nearestDistance = gun, part, distance
+				end
 			end
 		end
-		return nearestTag, nearestPart, nearestDistance
+		return nearest, nearestPart, nearestDistance
 	end
 
 	-- ThreatGeometry
@@ -471,99 +441,24 @@ return function(API)
 		humanoid:Move(Vector3.zero, false); return true
 	end
 
-	-- OneFrameTouchAndConfirm
-	function Pickup:TryTouchAndConfirm(character, humanoid, root, gun, gunPart, map, generation)
-		local alreadyHasGun = self:HasGun(character)
-		if not gunStillThere(gun) or not gunPart.Parent or alreadyHasGun then return alreadyHasGun, alreadyHasGun and "collected" or "gone" end
-		local ready, activeCharacter, activeHumanoid, currentRoot, _, currentMap = self:GetActiveContext()
-		if
-			not ready
-			or activeCharacter ~= character
-			or activeHumanoid ~= humanoid
-			or currentMap ~= map
-			or currentRoot ~= root
-			or self.Generation ~= generation
-		then
-			return false, "stopped"
-		end
-		if self.SafetyEnabled then
-			local roleData = self:GetRoleData(); local safe, threatRoot = self:IsSafeToApproach(root, humanoid, gun, gunPart, map, roleData)
-			if not safe or threatRoot and self:ShouldReplan(root, gunPart, threatRoot) then return false, "unsafe", threatRoot end
-		end
-		local touchFunction = getTouchFunction()
-		if not touchFunction then return false, "touch_unavailable" end
-		self.Touching = true; local originalCFrame = root.CFrame; local originalLinear = root.AssemblyLinearVelocity; local originalAngular = root.AssemblyAngularVelocity
-		local ok, errorMessage = xpcall(function()
-			local antiFling = API.Features.AntiFling
-			if antiFling and type(antiFling.AllowTeleport) == "function" then antiFling:AllowTeleport(0.2) end
-			root.CFrame = gunPart.CFrame; touchFunction(root, gunPart, 0); Services.RunService.Heartbeat:Wait(); touchFunction(root, gunPart, 1)
-		end, Util.FormatError)
-		local restoreOk, restoreError = pcall(function()
-			root.CFrame = originalCFrame; root.AssemblyLinearVelocity = originalLinear; root.AssemblyAngularVelocity = originalAngular
-		end)
-		self.Touching = false
-		if not ok then error(errorMessage, 0) end
-		if not restoreOk then error(restoreError, 0) end
-		local deadline = os.clock() + 0.3
-		repeat
-			if self:HasGun(character) then return true, "collected" end
-			if not self.Enabled or self.Generation ~= generation then return false, "stopped" end
-			Services.RunService.Heartbeat:Wait()
-		until os.clock() >= deadline
-		return false, "attempt_failed"
-	end
-
-	-- DirectPickupAttempt
-	function Pickup:AttemptPickup(character, humanoid, root, container, map, gun, generation)
-		if self:HasGun(character) then return "collected" end
-		local ready, activeCharacter, activeHumanoid, activeRoot, activeContainer, activeMap = self:GetActiveContext()
-		if
-			not ready
-			or activeCharacter ~= character
-			or activeHumanoid ~= humanoid
-			or activeRoot ~= root
-			or activeContainer ~= container
-			or activeMap ~= map
-			or self.Generation ~= generation
-			or not gunStillThere(gun)
-		then
-			return "stopped"
-		end
-		local gunPart = getGunPart(gun)
-		if not gunPart or pointInModel(map, gunPart.Position, 20) ~= true then return "gone" end
-		local collected, outcome, threatRoot =
-			self:TryTouchAndConfirm(character, humanoid, root, gun, gunPart, map, generation)
-		if collected then return "collected" end
-		if outcome == "unsafe" then
-			if threatRoot and self:GetThreatGap(root.Position, threatRoot) < 60 then self:TryEscape(character, humanoid, root, container, map, threatRoot, generation) end
-			self.NextAttemptAt = os.clock() + RETRY_DELAY; return "unsafe"
-		elseif outcome == "gone" or outcome == "stopped" then
-			return outcome
-		end
-		return "attempt_failed"
-	end
+	-- ReferencePickup
 	function Pickup:TryPickup()
 		if self.Busy or not self.Enabled or Runtime.ShuttingDown or os.clock() < self.NextAttemptAt then return end
-		local ready, character, humanoid, root, container, map = self:GetActiveContext()
+		local ready, character, humanoid, root = self:GetActiveContext()
 		if not ready or self:HasGun(character) then return end
-		local gun, gunPart = self:GetNearestDroppedGun(root, map)
-		if not gun or not gunPart then return end
-		self.Busy = true; self.ActiveHumanoid = humanoid; self.ActiveRoot = root; self.NextAttemptAt = os.clock() + 2
-		local generation = self.Generation
-		local ok, outcome = xpcall(
-			function() return self:AttemptPickup(character, humanoid, root, container, map, gun, generation) end,
-			Util.FormatError
-		)
-		self.ActiveHumanoid = nil; self.ActiveRoot = nil; self.Busy = false
-		if not ok then
-			self.RetryAfter[gun] = os.clock() + RETRY_DELAY; self:ReportError("coleta", outcome)
-		elseif outcome == "collected" or self:HasGun(character) then
-			self.Failures[gun] = nil; self.RetryAfter[gun] = nil; self.NextAttemptAt = os.clock() + 2
-		elseif outcome == "attempt_failed" and gunStillThere(gun) then
-			local failures = (self.Failures[gun] or 0) + 1; self.Failures[gun] = failures; self.RetryAfter[gun] = os.clock() + math.min(4 * failures, 15); self.NextAttemptAt = self.RetryAfter[gun]
-		elseif outcome == "gone" then
-			self.Failures[gun] = nil; self.RetryAfter[gun] = nil
-		end
+		local gun, part = self:GetNearestDroppedGun(root)
+		if not gun or not part then return end
+		local touch = getTouchFunction()
+		if not touch then self:ReportError("touch", "firetouchinterest indisponível"); self.NextAttemptAt = os.clock() + 2; return end
+		self.Busy = true
+		local ok, err = pcall(function()
+			touch(root, part, 0)
+			Services.RunService.Heartbeat:Wait()
+			touch(root, part, 1)
+		end)
+		self.Busy = false
+		self.NextAttemptAt = os.clock() + (ok and 0.4 or 1)
+		if not ok then self:ReportError("coleta", err) end
 	end
 
 	-- KnifeThrowObservation
