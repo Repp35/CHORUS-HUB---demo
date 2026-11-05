@@ -117,6 +117,7 @@ return function(API)
 			},
 			{
 				Key = "AutoKnifeAttackTargets",
+				ParentFlag = "AutoKnifeAttack",
 				Flag = "AutoKnifeAttackTargets",
 				SectionKey = "MurderCombatSection",
 				Type = "Dropdown",
@@ -141,6 +142,7 @@ return function(API)
 			},
 			{
 				Key = "AutoKnifeThrowTargets",
+				ParentFlag = "AutoKnifeThrow",
 				Flag = "AutoKnifeThrowTargets",
 				SectionKey = "MurderCombatSection",
 				Type = "Dropdown",
@@ -172,7 +174,7 @@ return function(API)
 				Flag = "AutoGunPickup",
 				Type = "Toggle",
 				Config = {
-					Name = "Auto Pick Up Gun (1 frame)",
+					Name = "Auto Pick Gun",
 					Default = true,
 					Save = true,
 					Callback = function(value)
