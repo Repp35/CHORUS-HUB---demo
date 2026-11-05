@@ -77,7 +77,7 @@ return function(API)
 				saved = { Size = part.Size, CanCollide = part.CanCollide, CanQuery = part.CanQuery }
 				self.Original[part] = saved
 			end
-			local factor = 1 + percent / 100
+			local factor = 1 + 2 * percent / 100
 			pcall(function()
 				part.CanCollide = false
 				part.CanQuery = true
