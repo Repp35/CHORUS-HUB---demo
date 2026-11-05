@@ -92,12 +92,10 @@ return function(API)
 		for part, saved in pairs(self.Original) do restore(part, saved); self.Original[part] = nil end
 	end
 
-	Runtime:TrackTask(task.spawn(function()
-		while not Hitbox.Destroyed and not Runtime.ShuttingDown do
-			local ok, err = pcall(function() Hitbox:Update() end)
-			if not ok then warn("[Chorus MM2] Hitbox Expander: " .. tostring(err)) end
-			task.wait(0.2)
-		end
+	Runtime:Track(API.Roblox.RunService.Heartbeat:Connect(function()
+		if Hitbox.Destroyed or Runtime.ShuttingDown then return end
+		local ok, err = pcall(function() Hitbox:Update() end)
+		if not ok then warn("[Chorus MM2] Hitbox Expander: " .. tostring(err)) end
 	end))
 	Runtime:OnShutdown(function() Hitbox:Destroy() end)
 	return Hitbox
