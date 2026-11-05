@@ -253,19 +253,8 @@ return function(API)
 		if not gun or gun.Parent ~= localCharacter then return false end
 		local shootRemote = gun:FindFirstChild("Shoot")
 		if not shootRemote or not shootRemote:IsA("RemoteEvent") then return false end
-		local expansion = API.Features.HitboxExpander and API.Features.HitboxExpander.ShootPercent or 0
-		local shotOrigin, hitPosition
-		if expansion >= 100 then
-			local targetPosition = targetRoot.Position
-			local velocity = targetRoot.AssemblyLinearVelocity
-			local ping = 0
-			pcall(function() ping = Player:GetNetworkPing() end)
-			hitPosition = targetPosition + velocity * math.clamp(ping, 0, 0.3)
-			shotOrigin = CFrame.new(targetPosition - targetRoot.CFrame.LookVector)
-		else
-			shotOrigin = self:GetShotOrigin(localCharacter, gun, localRoot)
-			hitPosition = self:GetClearAim(targetCharacter, targetRoot, gun, localCharacter, shotOrigin)
-		end
+		local shotOrigin = self:GetShotOrigin(localCharacter, gun, localRoot)
+		local hitPosition = self:GetClearAim(targetCharacter, targetRoot, gun, localCharacter, shotOrigin)
 		if not hitPosition then return false end
 		local shotPoint = self:GetShotPoint(hitPosition, automatic and self.AutoAccuracy or self.ManualAccuracy)
 		local ok = pcall(function() shootRemote:FireServer(shotOrigin, CFrame.new(shotPoint)) end)
