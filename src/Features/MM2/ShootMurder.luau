@@ -3,7 +3,7 @@
 return function(API)
 	local Players = API.Roblox.Players; local Services = API.Roblox; local TweenService = API.Roblox.TweenService; local Workspace = API.Roblox.Workspace
 	local Player = API.Player; local Runtime = API.Runtime; local MatchService = API.Services.Match; local Randomizer = Random.new()
-	local SHOT_COOLDOWN = 0.6; local ROLE_REFRESH_INTERVAL = 0.45; local WORK_INTERVAL = 0.1; local FADE_TIME = 0.16
+	local SHOT_COOLDOWN = 0.6; local ROLE_REFRESH_INTERVAL = 0.45; local FADE_TIME = 0.16
 	local EFFECT_TIME = 0.2; local GUI_NAME = "ChorusManualShootMurder"
 	local ShootMurder = {
 		ManualEnabled = false,
@@ -293,12 +293,10 @@ return function(API)
 		if self.ScreenGui then self.ScreenGui:Destroy() end
 		self.ScreenGui = nil; self.Button = nil; self.Stroke = nil
 	end
-	Runtime:TrackTask(task.spawn(function()
-		while not ShootMurder.Destroyed do
-			local ok, errorMessage = pcall(function() ShootMurder:Update() end)
-			if not ok then warn("[Chorus MM2] Shoot Murder recuperando após erro: " .. tostring(errorMessage)) end
-			task.wait(WORK_INTERVAL)
-		end
+	Runtime:Track(Services.RunService.Heartbeat:Connect(function()
+		if ShootMurder.Destroyed then return end
+		local ok, errorMessage = pcall(function() ShootMurder:Update() end)
+		if not ok then warn("[Chorus MM2] Shoot Murder: " .. tostring(errorMessage)) end
 	end))
 	Runtime:OnShutdown(function() ShootMurder:Destroy() end)
 
