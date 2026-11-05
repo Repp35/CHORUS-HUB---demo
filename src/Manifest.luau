@@ -18,7 +18,6 @@ return function()
 					{ Name = "Alerts", Path = "src/Features/MM2/Alerts" },
 					{ Name = "MapTools", Path = "src/Features/MM2/MapTools" },
 					{ Name = "AutoGunPickup", Path = "src/Features/MM2/AutoGunPickup" },
-					{ Name = "HitboxExpander", Path = "src/Features/MM2/HitboxExpander" },
 					{ Name = "MurderCombat", Path = "src/Features/MM2/MurderCombat" },
 					{ Name = "ShootMurder", Path = "src/Features/MM2/ShootMurder" },
 					{ Name = "RoleNameDebug", Path = "Testes/RoleNameDebug" },
