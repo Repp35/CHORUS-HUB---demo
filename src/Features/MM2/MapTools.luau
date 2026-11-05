@@ -110,30 +110,37 @@ return function(API)
 		allowAntiFlingTeleport(); notify("Teleportado para " .. tostring(map:GetAttribute("MapID")) .. "."); return true
 	end
 	function MapTools:TeleportToLobby()
-		local lobby = Services.Workspace:FindFirstChild("RegularLobby"); local character = getTeleportContext()
-		if not lobby then notify("Não encontrei o lobby."); return false end
-		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
-		local spawn = lobby:FindFirstChildWhichIsA("SpawnLocation", true)
-		if not spawn then
-			for _, name in ipairs({ "LobbySpawn", "Spawn", "SpawnLocation", "SpawnPoint" }) do
-				local candidate = lobby:FindFirstChild(name, true)
-				if candidate and candidate:IsA("BasePart") then spawn = candidate; break end
-			end
+		local character = getTeleportContext()
+		if not character then notify("Personagem indisponível."); return false end
+		local workspace = Services.Workspace
+		local lobby = workspace:FindFirstChild("RegularLobby")
+		if not lobby then notify("Lobby não encontrado."); return false end
+		local spawn
+		for _, name in ipairs({ "LobbySpawn", "SpawnLocation", "Spawn", "SpawnPoint" }) do
+			local candidate = lobby:FindFirstChild(name, true)
+			if candidate and candidate:IsA("BasePart") then spawn = candidate; break end
 		end
+		if not spawn then spawn = lobby:FindFirstChildWhichIsA("SpawnLocation", true) end
 		local destination
 		if spawn then
-			destination = spawn.CFrame + Vector3.new(0, 3, 0)
-		elseif lobby:IsA("Model") or lobby:IsA("BasePart") then
-			destination = lobby:GetPivot() + Vector3.new(0, 3, 0)
-		else
-			local part = lobby:FindFirstChildWhichIsA("BasePart", true)
-			if part then destination = part.CFrame + Vector3.new(0, 3, 0) end
+			destination = spawn.CFrame + Vector3.new(0, 4, 0)
+		elseif lobby:IsA("Model") then
+			local box, size = lobby:GetBoundingBox()
+			destination = box * CFrame.new(0, size.Y / 2 + 5, 0)
+		elseif lobby:IsA("BasePart") then
+			destination = lobby.CFrame + Vector3.new(0, lobby.Size.Y / 2 + 4, 0)
 		end
-		if not destination then notify("Não encontrei um ponto válido no lobby."); return false end
-		local ok = pcall(function() character:PivotTo(destination) end)
-		if not ok then notify("Não foi possível teleportar para o lobby."); return false end
-		allowAntiFlingTeleport(); notify("Teleportado para o lobby."); return true
+		if not destination then notify("Não encontrei um local válido no lobby."); return false end
+		allowAntiFlingTeleport()
+		local ok, err = pcall(function()
+			character:PivotTo(destination)
+			local root = character:FindFirstChild("HumanoidRootPart")
+			if root then root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero end
+		end)
+		if not ok then warn("[Chorus MM2] Lobby TP: " .. tostring(err)); notify("Falha no teleporte."); return false end
+		notify("Teleportado para o lobby."); return true
 	end
+
 	function MapTools:FindRoleTarget(role, includeHero)
 		local data = MatchService:GetPlayerData()
 		if not data then return nil end
