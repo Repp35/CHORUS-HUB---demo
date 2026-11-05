@@ -3,7 +3,7 @@
 return function(API)
 	local Players = API.Roblox.Players; local Services = API.Roblox; local TweenService = API.Roblox.TweenService; local Workspace = API.Roblox.Workspace
 	local Player = API.Player; local Runtime = API.Runtime; local MatchService = API.Services.Match; local Randomizer = Random.new()
-	local SHOT_COOLDOWN = 0.6; local ROLE_REFRESH_INTERVAL = 0.45; local FADE_TIME = 0.16
+	local ROLE_REFRESH_INTERVAL = 0.45; local FADE_TIME = 0.16
 	local EFFECT_TIME = 0.2; local GUI_NAME = "ChorusManualShootMurder"
 	local ShootMurder = {
 		ManualEnabled = false,
@@ -14,7 +14,6 @@ return function(API)
 		RoleData = nil,
 		RoleDataAt = 0,
 		NextRoleRefreshAt = 0,
-		LastShotAt = 0,
 		NextRoleWarningAt = 0,
 		HudVisible = false,
 		HudGeneration = 0,
@@ -239,8 +238,6 @@ return function(API)
 		end)
 	end
 	function ShootMurder:TryShoot(automatic)
-		local now = os.clock()
-		if now - self.LastShotAt < SHOT_COOLDOWN then return false end
 		if not automatic then self:RefreshRoleData(true) end
 		if not self:HasSheriffRole() then
 			if not automatic then self:WarnRoleRequired() end
@@ -261,7 +258,7 @@ return function(API)
 		local shotPoint = self:GetShotPoint(hitPosition, automatic and self.AutoAccuracy or self.ManualAccuracy)
 		local ok = pcall(function() shootRemote:FireServer(shotOrigin, CFrame.new(shotPoint)) end)
 		if not ok then return false end
-		self.LastShotAt = now; self:ShowShotEffect(); return true
+		self:ShowShotEffect(); return true
 	end
 	function ShootMurder:Update()
 		if self.Destroyed then return end
