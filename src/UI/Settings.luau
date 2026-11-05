@@ -8,6 +8,7 @@ return function(API)
 	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder; local Gravity = API.Features.Gravity; local MapTools = API.Features.MapTools
 	local Alerts = API.Features.Alerts; local selectedPlayerName = "None"
+	local MurderCombat = API.Features.MurderCombat; local HitboxExpander = API.Features.HitboxExpander
 
 	-- ControlGroups
 	local Settings = {}
@@ -86,6 +87,81 @@ return function(API)
 					Default = false,
 					Save = true,
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
+				},
+			},
+			{
+				Key = "ShootHitboxPercent",
+				Flag = "ShootHitboxPercent",
+				SectionKey = "ShootMurderSection",
+				Type = "Slider",
+				Config = {
+					Name = "Shoot Hitbox Expansion",
+					Description = "Aumenta localmente a hitbox do Murderer de 0% a 100%.",
+					Min = 0, Max = 100, Default = 0, Increment = 5, ValueName = "%",
+					Save = true,
+					Callback = function(value) HitboxExpander:SetShootPercent(value) end,
+				},
+			},
+			{ Key = "MurderCombatSection", Type = "Section", Config = { Name = "Murderer Combat" } },
+			{
+				Key = "AutoKnifeAttack",
+				Flag = "AutoKnifeAttack",
+				SectionKey = "MurderCombatSection",
+				Type = "Toggle",
+				Importance = Importance.High,
+				Config = {
+					Name = "Auto Attack (Knife)",
+					Default = false, Save = true,
+					Callback = function(value) MurderCombat:SetAutoAttack(value) end,
+				},
+			},
+			{
+				Key = "AutoKnifeAttackTargets",
+				Flag = "AutoKnifeAttackTargets",
+				SectionKey = "MurderCombatSection",
+				Type = "Dropdown",
+				Config = {
+					Name = "Auto Attack Targets",
+					Options = { "All", "Sheriff/Hero", "Innocent" },
+					Default = "All", Save = true,
+					Callback = function(value) MurderCombat:SetAttackTargets(value) end,
+				},
+			},
+			{
+				Key = "AutoKnifeThrow",
+				Flag = "AutoKnifeThrow",
+				SectionKey = "MurderCombatSection",
+				Type = "Toggle",
+				Importance = Importance.High,
+				Config = {
+					Name = "Auto Throw Knife",
+					Default = false, Save = true,
+					Callback = function(value) MurderCombat:SetAutoThrow(value) end,
+				},
+			},
+			{
+				Key = "AutoKnifeThrowTargets",
+				Flag = "AutoKnifeThrowTargets",
+				SectionKey = "MurderCombatSection",
+				Type = "Dropdown",
+				Config = {
+					Name = "Auto Throw Targets",
+					Options = { "Auto", "Sheriff/Hero", "Innocent", "Nearest" },
+					Default = "Auto", Save = true,
+					Callback = function(value) MurderCombat:SetThrowTargets(value) end,
+				},
+			},
+			{
+				Key = "MurderHitboxPercent",
+				Flag = "MurderHitboxPercent",
+				SectionKey = "MurderCombatSection",
+				Type = "Slider",
+				Config = {
+					Name = "Murder Hitbox Expansion",
+					Description = "Aumenta localmente a hitbox dos demais jogadores.",
+					Min = 0, Max = 100, Default = 0, Increment = 5, ValueName = "%",
+					Save = true,
+					Callback = function(value) HitboxExpander:SetMurderPercent(value) end,
 				},
 			},
 			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
