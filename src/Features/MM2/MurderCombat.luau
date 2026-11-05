@@ -186,12 +186,23 @@ return function(API)
 		return list
 	end
 
+	local function getMeleeRange(knife, targetRoot)
+		local configured = tonumber(knife:GetAttribute("StabRange") or knife:GetAttribute("KnifeReach"))
+		local radius = configured and math.clamp(configured, 4, 16) or MELEE_RANGE
+		local expander = API.Features.HitboxExpander
+		local original = expander and expander.Original[targetRoot]
+		if original then
+			radius += math.max(0, (targetRoot.Size.X - original.Size.X) * 0.5)
+		end
+		return radius
+	end
+
 	local function chooseMelee(character, root, knife, profiles)
 		local nearest, shortest
 		local _, _, coinContainer = MatchService:GetRoundContext()
 		local origin = getOrigin(character, root, knife)
 		for _, entry in ipairs(getTargets(root, profiles, Combat.AttackTargets)) do
-			if entry.Distance <= MELEE_RANGE and (not shortest or entry.Distance < shortest) then
+			if entry.Distance <= getMeleeRange(knife, entry.Root) and (not shortest or entry.Distance < shortest) then
 				local part = entry.Character:FindFirstChild("UpperTorso") or entry.Character:FindFirstChild("Torso") or entry.Root
 				if visible(origin, part, entry.Character, character, coinContainer) then
 					nearest, shortest = entry, entry.Distance
@@ -205,8 +216,9 @@ return function(API)
 		local events = knife:FindFirstChild("Events")
 		local stabbed = events and events:FindFirstChild("KnifeStabbed")
 		local touched = events and events:FindFirstChild("HandleTouched")
-		local hitPart = target.Character:FindFirstChild("UpperTorso") or target.Character:FindFirstChild("Torso")
-			or target.Character:FindFirstChild("Head") or target.Root
+		local expanded = API.Features.HitboxExpander and API.Features.HitboxExpander.Original[target.Root]
+		local hitPart = expanded and target.Root or target.Character:FindFirstChild("UpperTorso")
+			or target.Character:FindFirstChild("Torso") or target.Character:FindFirstChild("Head") or target.Root
 		if stabbed and stabbed:IsA("RemoteEvent") and touched and touched:IsA("RemoteEvent") then
 			stabbed:FireServer()
 			touched:FireServer(hitPart)
@@ -225,7 +237,7 @@ return function(API)
 		local preferred, bestScore
 		for _, entry in ipairs(getTargets(root, profiles, mode)) do
 			if entry.Distance <= THROW_MAX_RANGE
-				and (not Combat.AutoAttack or entry.Distance > MELEE_RANGE) then
+				and (not Combat.AutoAttack or entry.Distance > getMeleeRange(knife, entry.Root)) then
 				local aimPart = entry.Character:FindFirstChild("UpperTorso") or entry.Character:FindFirstChild("Torso") or entry.Root
 				if visible(origin, aimPart, entry.Character, character, coinContainer) then
 					local velocity = getMotion(entry.Player, entry.Root)
