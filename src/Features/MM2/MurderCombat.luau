@@ -91,8 +91,7 @@ return function(API)
 		for _ = 1, 12 do
 			params.FilterDescendantsInstances = ignores
 			local result = Workspace:Raycast(origin, destination - origin, params)
-			if not result or result.Instance.Transparency ~= 1
-				or (API.Features.HitboxExpander and API.Features.HitboxExpander.Original[result.Instance]) then return result end
+			if not result or result.Instance.Transparency ~= 1 then return result end
 			table.insert(ignores, result.Instance)
 		end
 		return nil
@@ -184,11 +183,7 @@ return function(API)
 	local function getMeleeRange(knife, targetRoot)
 		local configured = tonumber(knife:GetAttribute("StabRange") or knife:GetAttribute("KnifeReach"))
 		local radius = configured and math.clamp(configured, 4, 16) or MELEE_RANGE
-		local expander = API.Features.HitboxExpander
-		local original = expander and expander.Original[targetRoot]
-		if original then
-			radius += math.max(0, (targetRoot.Size.X - original.Size.X) * 0.5)
-		end
+
 		return radius
 	end
 
@@ -211,8 +206,7 @@ return function(API)
 		local events = knife:FindFirstChild("Events")
 		local stabbed = events and events:FindFirstChild("KnifeStabbed")
 		local touched = events and events:FindFirstChild("HandleTouched")
-		local expanded = API.Features.HitboxExpander and API.Features.HitboxExpander.Original[target.Root]
-		local hitPart = expanded and target.Root or target.Character:FindFirstChild("UpperTorso")
+		local hitPart = target.Character:FindFirstChild("UpperTorso")
 			or target.Character:FindFirstChild("Torso") or target.Character:FindFirstChild("Head") or target.Root
 		if stabbed and stabbed:IsA("RemoteEvent") and touched and touched:IsA("RemoteEvent") then
 			stabbed:FireServer()
