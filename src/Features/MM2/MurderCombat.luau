@@ -8,10 +8,7 @@ return function(API)
 	local CollectionService = Services.CollectionService
 
 	local MELEE_RANGE = 8
-	local MELEE_COOLDOWN = 0.3
-	local THROW_COOLDOWN = 1.3
 	local THROW_MAX_RANGE = 240
-	local UPDATE_INTERVAL = 0.085
 	local DEFAULT_KNIFE_SPEED = 96
 
 	local Combat = {
@@ -19,8 +16,6 @@ return function(API)
 		AutoThrow = false,
 		AttackTargets = "All",
 		ThrowTargets = "Auto",
-		LastStab = 0,
-		LastThrow = 0,
 		RoleData = nil,
 		RoleDataAt = 0,
 		Motion = setmetatable({}, { __mode = "k" }),
@@ -306,14 +301,13 @@ return function(API)
 		if self.Destroyed or not self.AutoAttack and not self.AutoThrow then return end
 		local character, _, root, knife, profiles = getContext()
 		if not character or not knife or not profiles then return end
-		local now = os.clock()
-		if self.AutoAttack and now - self.LastStab >= MELEE_COOLDOWN then
+		if self.AutoAttack then
 			local target = chooseMelee(character, root, knife, profiles)
-			if target and tryStab(knife, target) then self.LastStab = now end
+			if target then tryStab(knife, target) end
 		end
-		if self.AutoThrow and now - self.LastThrow >= THROW_COOLDOWN then
+		if self.AutoThrow then
 			local selected = chooseThrow(character, root, knife, profiles)
-			if selected and tryThrow(knife, selected, character) then self.LastThrow = now end
+			if selected then tryThrow(knife, selected, character) end
 		end
 	end
 
@@ -333,12 +327,10 @@ return function(API)
 		table.clear(self.Motion)
 	end
 
-	Runtime:TrackTask(task.spawn(function()
-		while not Combat.Destroyed and not Runtime.ShuttingDown do
-			local ok, err = pcall(function() Combat:Update() end)
-			if not ok then warn("[Chorus MM2] Murder Combat: " .. tostring(err)) end
-			task.wait(UPDATE_INTERVAL)
-		end
+	Runtime:Track(RunService.Heartbeat:Connect(function()
+		if Combat.Destroyed or Runtime.ShuttingDown then return end
+		local ok, err = pcall(function() Combat:Update() end)
+		if not ok then warn("[Chorus MM2] Murder Combat: " .. tostring(err)) end
 	end))
 	Runtime:OnShutdown(function() Combat:Destroy() end)
 	return Combat
