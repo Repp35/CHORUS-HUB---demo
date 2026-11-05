@@ -216,6 +216,18 @@ return function(API)
 				},
 			},
 			{
+				Key = "AutoTeleportToGun",
+				Flag = "AutoTeleportToGun",
+				SectionKey = "MapTravelSection",
+				Type = "Toggle",
+				Config = {
+					Name = "Auto Teleport to Gun",
+					Default = false,
+					Save = true,
+					Callback = function(value) MapTools:SetAutoGunTeleport(value) end,
+				},
+			},
+			{
 				Key = "TeleportToGunHolder",
 				SectionKey = "MapTravelSection",
 				Type = "Button",
