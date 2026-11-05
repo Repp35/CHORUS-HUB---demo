@@ -133,13 +133,13 @@ return function(API)
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.IgnoreWater = true
 		local origin = shotOrigin.Position
-		local points = { root.Position, root.Position + Vector3.new(0, 1.2, 0) }
-		local head = character:FindFirstChild("Head")
-		if head and head:IsA("BasePart") then table.insert(points, 1, head.Position) end
+		local points = {}
+		for _, name in ipairs({ "UpperTorso", "Torso", "Head", "LowerTorso", "HumanoidRootPart" }) do
+			local part = character:FindFirstChild(name)
+			if part and part:IsA("BasePart") then table.insert(points, part.Position) end
+		end
 		for _, part in ipairs(character:GetChildren()) do
-			if part:IsA("BasePart") and part.CanQuery and part.Name ~= "HumanoidRootPart" and part ~= head then
-				table.insert(points, part.Position)
-			end
+			if part:IsA("BasePart") and part.CanQuery then table.insert(points, part.Position) end
 		end
 		for _, point in ipairs(points) do
 			local direction = point - origin
@@ -148,8 +148,9 @@ return function(API)
 				for _ = 1, 32 do
 					params.FilterDescendantsInstances = rayIgnored
 					local hit = Workspace:Raycast(origin, direction, params)
-					if not hit then break end
-					if hit.Instance:IsDescendantOf(character) then return hit.Position end
+					if not hit or hit.Instance:IsDescendantOf(character) then
+						return point
+					end
 					if not hit.Instance:IsA("BasePart") or hit.Instance.Transparency ~= 1 then break end
 					table.insert(rayIgnored, hit.Instance)
 				end
