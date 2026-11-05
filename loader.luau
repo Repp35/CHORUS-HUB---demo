@@ -17,7 +17,6 @@ local httpGetOk, httpGet = pcall(function() return game.HttpGet end)
 if not httpGetOk or type(httpGet) ~= "function" then return end
 
 -- Constants
-local MM2_GAME_ID = 66654135
 local REPOSITORY = "Repp35/CHORUS-HUB---demo"
 local BRANCH = "main"
 local RUNTIME_KEY = "__ChorusMM2DeltaRuntime"
@@ -62,9 +61,6 @@ local function getSharedEnvironment()
 	return _G
 end
 local SharedEnvironment = getSharedEnvironment()
-local isMM2 = false
-pcall(function() isMM2 = game.PlaceId == MM2_GAME_ID or game.GameId == MM2_GAME_ID end)
-if not isMM2 then return end
 local PreviousBootstrap = rawget(SharedEnvironment, BOOTSTRAP_KEY)
 if type(PreviousBootstrap) == "table" then
 	PreviousBootstrap.Cancelled = true
