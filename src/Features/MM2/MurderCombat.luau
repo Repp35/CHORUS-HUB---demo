@@ -264,7 +264,7 @@ return function(API)
 		local _, _, coinContainer = MatchService:GetRoundContext()
 		local traveled, last = 0, origin
 		while traveled < THROW_MAX_RANGE and character.Parent and hitRemote.Parent and not Runtime.ShuttingDown do
-			local dt = math.min(RunService.Heartbeat:Wait(), 0.08)
+			local dt = math.clamp(RunService.Heartbeat:Wait(), 0.001, 0.3)
 			local nextPosition = last + direction * (dt * speed)
 			local hit = raycast(last, nextPosition, character, coinContainer)
 			if hit then
