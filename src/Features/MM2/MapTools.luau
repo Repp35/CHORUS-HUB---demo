@@ -10,6 +10,8 @@ return function(API)
 		ManualMoveUntil = 0,
 		IsWalking = false,
 		MovementOwner = nil,
+		AutoGunTeleportEnabled = false,
+		LastAutoGun = nil,
 	}
 
 	local function notify(content)
@@ -177,6 +179,37 @@ return function(API)
 		if not ok then notify("Não foi possível teleportar até a arma."); return false end
 		notify("Teleportado até a arma caída."); return true
 	end
+	function MapTools:SetAutoGunTeleport(enabled)
+		self.AutoGunTeleportEnabled = enabled == true
+		self.LastAutoGun = nil
+	end
+	Runtime:TrackTask(task.spawn(function()
+		while not Runtime.ShuttingDown do
+			if MapTools.AutoGunTeleportEnabled then
+				local _, map = MatchService:GetRoundContext()
+				local gun
+				if map and map.Parent then
+					for _, candidate in ipairs(Services.CollectionService:GetTagged("GunDrop")) do
+						if candidate:IsA("BasePart") and candidate:IsDescendantOf(map) then
+							gun = candidate
+							break
+						end
+					end
+				end
+				if gun and gun ~= MapTools.LastAutoGun then
+					local character = getTeleportContext()
+					if character then
+						allowAntiFlingTeleport()
+						local ok = pcall(function() character:PivotTo(gun.CFrame + Vector3.new(0, 2.5, 0)) end)
+						if ok then MapTools.LastAutoGun = gun end
+					end
+				elseif not gun then
+					MapTools.LastAutoGun = nil
+				end
+			end
+			task.wait(0.15)
+		end
+	end))
 	function MapTools:TeleportToPlayer(target)
 		local character = getTeleportContext()
 		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
