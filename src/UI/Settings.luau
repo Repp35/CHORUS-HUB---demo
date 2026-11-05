@@ -207,6 +207,15 @@ return function(API)
 				},
 			},
 			{
+				Key = "TeleportToGun",
+				SectionKey = "MapTravelSection",
+				Type = "Button",
+				Config = {
+					Name = "Teleport to Gun",
+					Callback = function() MapTools:TeleportToGun() end,
+				},
+			},
+			{
 				Key = "TeleportToGunHolder",
 				SectionKey = "MapTravelSection",
 				Type = "Button",
