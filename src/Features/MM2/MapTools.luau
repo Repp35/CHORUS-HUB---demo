@@ -158,6 +158,25 @@ return function(API)
 		end
 		return nil
 	end
+	function MapTools:TeleportToGun()
+		local _, map = MatchService:GetRoundContext()
+		local character = getTeleportContext()
+		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
+		if not map or not map.Parent then notify("Não há uma partida em andamento."); return false end
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local nearest, distance
+		for _, gun in ipairs(Services.CollectionService:GetTagged("GunDrop")) do
+			if gun:IsA("BasePart") and gun:IsDescendantOf(map) then
+				local gap = (root.Position - gun.Position).Magnitude
+				if not distance or gap < distance then nearest, distance = gun, gap end
+			end
+		end
+		if not nearest then notify("Não encontrei uma arma caída no mapa."); return false end
+		allowAntiFlingTeleport()
+		local ok = pcall(function() character:PivotTo(nearest.CFrame + Vector3.new(0, 2.5, 0)) end)
+		if not ok then notify("Não foi possível teleportar até a arma."); return false end
+		notify("Teleportado até a arma caída."); return true
+	end
 	function MapTools:TeleportToPlayer(target)
 		local character = getTeleportContext()
 		if not character then notify("Seu personagem não está disponível para teleportar."); return false end
