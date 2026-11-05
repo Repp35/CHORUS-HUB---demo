@@ -36,7 +36,7 @@ return function(API)
 	end
 
 	local function getRoleData()
-		if Combat.RoleData and os.clock() - Combat.RoleDataAt < 0.55 then return Combat.RoleData end
+		if os.clock() - Combat.RoleDataAt < 0.55 then return Combat.RoleData end
 		Combat.RoleDataAt = os.clock()
 		Combat.RoleData = MatchService:GetPlayerData()
 		return Combat.RoleData
@@ -96,7 +96,8 @@ return function(API)
 		for _ = 1, 12 do
 			params.FilterDescendantsInstances = ignores
 			local result = Workspace:Raycast(origin, destination - origin, params)
-			if not result or result.Instance.Transparency ~= 1 then return result end
+			if not result or result.Instance.Transparency ~= 1
+				or (API.Features.HitboxExpander and API.Features.HitboxExpander.Original[result.Instance]) then return result end
 			table.insert(ignores, result.Instance)
 		end
 		return nil
@@ -185,11 +186,16 @@ return function(API)
 		return list
 	end
 
-	local function chooseMelee(root, profiles)
+	local function chooseMelee(character, root, knife, profiles)
 		local nearest, shortest
+		local _, _, coinContainer = MatchService:GetRoundContext()
+		local origin = getOrigin(character, root, knife)
 		for _, entry in ipairs(getTargets(root, profiles, Combat.AttackTargets)) do
 			if entry.Distance <= MELEE_RANGE and (not shortest or entry.Distance < shortest) then
-				nearest, shortest = entry, entry.Distance
+				local part = entry.Character:FindFirstChild("UpperTorso") or entry.Character:FindFirstChild("Torso") or entry.Root
+				if visible(origin, part, entry.Character, character, coinContainer) then
+					nearest, shortest = entry, entry.Distance
+				end
 			end
 		end
 		return nearest
@@ -290,7 +296,7 @@ return function(API)
 		if not character or not knife or not profiles then return end
 		local now = os.clock()
 		if self.AutoAttack and now - self.LastStab >= MELEE_COOLDOWN then
-			local target = chooseMelee(root, profiles)
+			local target = chooseMelee(character, root, knife, profiles)
 			if target and tryStab(knife, target) then self.LastStab = now end
 		end
 		if self.AutoThrow and now - self.LastThrow >= THROW_COOLDOWN then
