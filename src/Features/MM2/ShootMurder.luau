@@ -114,45 +114,47 @@ return function(API)
 		end
 		return nil
 	end
-	function ShootMurder:GetClearAim(character, root, gun, localCharacter)
-		local originAttachment = root:FindFirstChild("GunRaycastAttachment")
-		if not originAttachment or not originAttachment:IsA("Attachment") then return nil end
-		local gunOrigin = originAttachment.WorldPosition; local _, _, coinContainer = MatchService:GetRoundContext(); local ignored = { localCharacter, gun }
+	function ShootMurder:GetShotOrigin(localCharacter, gun, root)
+		local attachment = root:FindFirstChild("GunRaycastAttachment")
+			or gun:FindFirstChild("GunRaycastAttachment", true)
+			or localCharacter:FindFirstChild("GunRaycastAttachment", true)
+		if attachment and attachment:IsA("Attachment") then return attachment.WorldCFrame end
+		local handle = gun:FindFirstChild("Handle")
+		if handle and handle:IsA("BasePart") then return handle.CFrame end
+		return root.CFrame * CFrame.new(0, 1.2, 0)
+	end
+	function ShootMurder:GetClearAim(character, root, gun, localCharacter, shotOrigin)
+		local _, _, coinContainer = MatchService:GetRoundContext()
+		local ignored = { localCharacter, gun }
 		if coinContainer then table.insert(ignored, coinContainer) end
 		for _, instance in ipairs(Services.CollectionService:GetTagged("WeaponPassthrough")) do
 			table.insert(ignored, instance)
 		end
-		local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = ignored; params.IgnoreWater = true
-		local function weaponRay(from, to)
-			local direction = to - from
-			for _ = 1, 24 do
-				local hit = Workspace:Raycast(from, direction, params)
-				if not hit then return nil end
-				if
-					not hit.Instance:IsA("BasePart")
-					or hit.Instance.Transparency ~= 1
-					or table.find(ignored, hit.Instance)
-				then
-					return hit
-				end
-				table.insert(ignored, hit.Instance); params.FilterDescendantsInstances = ignored
-			end
-			return nil
-		end
-		local side = root.Position - gunOrigin; side = Vector3.new(-side.Z, 0, side.X); side = side.Magnitude > 0.01 and side.Unit * 1.1 or Vector3.zero
-		local candidates =
-			{ root.Position, root.Position + Vector3.new(0, 1.3, 0), root.Position + side, root.Position - side }
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.IgnoreWater = true
+		local origin = shotOrigin.Position
+		local points = { root.Position, root.Position + Vector3.new(0, 1.2, 0) }
 		local head = character:FindFirstChild("Head")
-		if head and head:IsA("BasePart") then table.insert(candidates, 2, head.Position) end
-		local localHead = localCharacter:FindFirstChild("Head")
-		for _, point in ipairs(candidates) do
-			local ray = point - gunOrigin; local across = Vector3.new(-ray.Z, 0, ray.X); across = across.Magnitude > 0.01 and across.Unit * 0.9 or Vector3.zero
-			local function hitsTarget(from, to)
-				local hit = weaponRay(from, to); return hit ~= nil and hit.Instance:IsDescendantOf(character), hit and hit.Position
+		if head and head:IsA("BasePart") then table.insert(points, 1, head.Position) end
+		for _, part in ipairs(character:GetChildren()) do
+			if part:IsA("BasePart") and part.CanQuery and part.Name ~= "HumanoidRootPart" and part ~= head then
+				table.insert(points, part.Position)
 			end
-			local centered, hitPosition = hitsTarget(gunOrigin, point); local left = centered and hitsTarget(gunOrigin + across, point); local right = left and hitsTarget(gunOrigin - across, point)
-			local eyeClear = not localHead or hitsTarget(localHead.Position, point)
-			if centered and left and right and eyeClear then return hitPosition end
+		end
+		for _, point in ipairs(points) do
+			local direction = point - origin
+			if direction.Magnitude > 0.05 then
+				local rayIgnored = table.clone(ignored)
+				for _ = 1, 32 do
+					params.FilterDescendantsInstances = rayIgnored
+					local hit = Workspace:Raycast(origin, direction, params)
+					if not hit then break end
+					if hit.Instance:IsDescendantOf(character) then return hit.Position end
+					if not hit.Instance:IsA("BasePart") or hit.Instance.Transparency ~= 1 then break end
+					table.insert(rayIgnored, hit.Instance)
+				end
+			end
 		end
 		return nil
 	end
@@ -253,12 +255,11 @@ return function(API)
 		if not gun or gun.Parent ~= localCharacter then return false end
 		local shootRemote = gun:FindFirstChild("Shoot")
 		if not shootRemote or not shootRemote:IsA("RemoteEvent") then return false end
-		local hitPosition = self:GetClearAim(targetCharacter, targetRoot, gun, localCharacter)
+		local shotOrigin = self:GetShotOrigin(localCharacter, gun, localRoot)
+		local hitPosition = self:GetClearAim(targetCharacter, targetRoot, gun, localCharacter, shotOrigin)
 		if not hitPosition then return false end
-		local origin = localRoot:FindFirstChild("GunRaycastAttachment")
-		if not origin or not origin:IsA("Attachment") then return false end
 		local shotPoint = self:GetShotPoint(hitPosition, automatic and self.AutoAccuracy or self.ManualAccuracy)
-		local ok = pcall(function() shootRemote:FireServer(origin.WorldCFrame, CFrame.new(shotPoint)) end)
+		local ok = pcall(function() shootRemote:FireServer(shotOrigin, CFrame.new(shotPoint)) end)
 		if not ok then return false end
 		self.LastShotAt = now; self:ShowShotEffect(); return true
 	end
