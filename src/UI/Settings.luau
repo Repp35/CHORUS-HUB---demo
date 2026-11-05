@@ -8,7 +8,7 @@ return function(API)
 	local InfiniteJump = API.Features.InfiniteJump; local DynamicSpeed = API.Features.DynamicSpeed; local Fly = API.Features.Fly; local Invisicam = API.Features.Invisicam
 	local AutoGunPickup = API.Features.AutoGunPickup; local ShootMurder = API.Features.ShootMurder; local Gravity = API.Features.Gravity; local MapTools = API.Features.MapTools
 	local Alerts = API.Features.Alerts; local selectedPlayerName = "None"
-	local MurderCombat = API.Features.MurderCombat; local HitboxExpander = API.Features.HitboxExpander
+	local MurderCombat = API.Features.MurderCombat
 
 	-- ControlGroups
 	local Settings = {}
@@ -89,19 +89,7 @@ return function(API)
 					Callback = function(value) ShootMurder:SetWaitForKnife(value) end,
 				},
 			},
-			{
-				Key = "ShootHitboxPercent",
-				Flag = "ShootHitboxPercent",
-				SectionKey = "ShootMurderSection",
-				Type = "Slider",
-				Config = {
-					Name = "Shoot Hitbox Expansion",
-					Description = "Aumenta localmente a hitbox do Murderer de 0% a 100%.",
-					Min = 0, Max = 100, Default = 0, Increment = 5, ValueName = "%",
-					Save = true,
-					Callback = function(value) HitboxExpander:SetShootPercent(value) end,
-				},
-			},
+
 			{ Key = "MurderCombatSection", Type = "Section", Config = { Name = "Murderer Combat" } },
 			{
 				Key = "AutoKnifeAttack",
@@ -153,19 +141,7 @@ return function(API)
 					Callback = function(value) MurderCombat:SetThrowTargets(value) end,
 				},
 			},
-			{
-				Key = "MurderHitboxPercent",
-				Flag = "MurderHitboxPercent",
-				SectionKey = "MurderCombatSection",
-				Type = "Slider",
-				Config = {
-					Name = "Murder Hitbox Expansion",
-					Description = "Aumenta localmente a hitbox dos demais jogadores.",
-					Min = 0, Max = 100, Default = 0, Increment = 5, ValueName = "%",
-					Save = true,
-					Callback = function(value) HitboxExpander:SetMurderPercent(value) end,
-				},
-			},
+
 			{ Key = "GunPickupSection", Type = "Section", Config = { Name = "Coleta de arma" } },
 			{
 				Key = "AutoGunPickup",
