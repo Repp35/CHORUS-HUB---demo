@@ -29,6 +29,20 @@ return function(API)
 				},
 			},
 			{
+				Key = "ManualShootMurderInvisible",
+				Flag = "ManualShootMurderInvisible",
+				ParentFlag = "ManualShootMurder",
+				SectionKey = "ShootMurderSection",
+				Importance = Importance.Normal,
+				Type = "Toggle",
+				Config = {
+					Name = "Invisible Shoot Murder Button",
+					Default = false,
+					Save = true,
+					Callback = function(value) ShootMurder:SetHudInvisible(value) end,
+				},
+			},
+			{
 				Key = "ManualShootMurderAccuracy",
 				Flag = "ManualShootMurderAccuracy",
 				ParentFlag = "ManualShootMurder",
