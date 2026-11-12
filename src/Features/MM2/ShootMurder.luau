@@ -16,9 +16,15 @@ return function(API)
 		NextRoleRefreshAt = 0,
 		NextRoleWarningAt = 0,
 		HudVisible = false,
+		HudInvisible = false,
 		HudGeneration = 0,
 		EffectGeneration = 0,
 		Destroyed = false,
+		Dragging = false,
+		DragInput = nil,
+		DragStart = nil,
+		StartPosition = nil,
+		DragMoved = false,
 		Tweens = {},
 	}
 
@@ -195,8 +201,32 @@ return function(API)
 		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 15); corner.Parent = button; local stroke = Instance.new("UIStroke")
 		stroke.Color = Color3.fromRGB(105, 220, 140); stroke.Thickness = 1.5; stroke.Transparency = 1; stroke.Parent = button
 		screenGui.Parent = playerGui; self.ScreenGui = screenGui; self.Button = button; self.Stroke = stroke
+		button.Active = true
+		Runtime:Track(button.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			self.Dragging = true; self.DragMoved = false; self.DragStart = input.Position; self.StartPosition = button.Position
+			Runtime:Track(input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then self.Dragging = false end
+			end))
+		end))
+		Runtime:Track(button.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+				self.DragInput = input
+			end
+		end))
+		Runtime:Track(Services.UserInputService.InputChanged:Connect(function(input)
+			if not self.Dragging or input ~= self.DragInput or not self.DragStart or not self.StartPosition then return end
+			local delta = input.Position - self.DragStart
+			if math.abs(delta.X) + math.abs(delta.Y) > 6 then self.DragMoved = true end
+			button.Position = UDim2.new(
+				self.StartPosition.X.Scale,
+				self.StartPosition.X.Offset + delta.X,
+				self.StartPosition.Y.Scale,
+				self.StartPosition.Y.Offset + delta.Y
+			)
+		end))
 		Runtime:Track(button.Activated:Connect(function()
-			if self.HudVisible and self.ManualEnabled then self:TryShoot() end
+			if not self.DragMoved and self.HudVisible and self.ManualEnabled then self:TryShoot() end
 		end))
 	end
 	function ShootMurder:SetHudVisible(visible)
@@ -206,8 +236,11 @@ return function(API)
 			if self.HudVisible then return end
 			self.HudGeneration += 1; self.ScreenGui.Enabled = true; self.HudVisible = true
 			self:TweenHud({
-				Button = { BackgroundTransparency = 0.04, TextTransparency = 0 },
-				Stroke = { Transparency = 0.35 },
+				Button = {
+					BackgroundTransparency = self.HudInvisible and 1 or 0.04,
+					TextTransparency = self.HudInvisible and 1 or 0,
+				},
+				Stroke = { Transparency = self.HudInvisible and 1 or 0.35 },
 			})
 
 			return
@@ -223,7 +256,7 @@ return function(API)
 		end)
 	end
 	function ShootMurder:ShowShotEffect()
-		if not self.HudVisible or not self.Button then return end
+		if not self.HudVisible or self.HudInvisible or not self.Button then return end
 		self.EffectGeneration += 1; local generation = self.EffectGeneration; self.Button.Text = "💥"; self.Button.TextTransparency = 1
 		self:TweenHud(
 			{ Button = { BackgroundTransparency = 0.04, TextTransparency = 0 }, Stroke = { Transparency = 0.35 } },
@@ -237,6 +270,17 @@ return function(API)
 				0.08
 			)
 		end)
+	end
+	function ShootMurder:SetHudInvisible(invisible)
+		self.HudInvisible = invisible == true
+		if not self.HudVisible or not self.Button then return end
+		self:TweenHud({
+			Button = {
+				BackgroundTransparency = self.HudInvisible and 1 or 0.04,
+				TextTransparency = self.HudInvisible and 1 or 0,
+			},
+			Stroke = { Transparency = self.HudInvisible and 1 or 0.35 },
+		})
 	end
 	function ShootMurder:TryShoot(automatic)
 		if not automatic then self:RefreshRoleData(true) end
